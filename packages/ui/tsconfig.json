@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@bonne-garde/ui/*": ["./src/*"],
+    },
+  },
+  "include": ["./src/**/*", "*.ts"],
+  "exclude": ["node_modules", "dist"],
+}

@@ -1,0 +1,41 @@
+{
+  "name": "bonne-garde-boilerplate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --parallel --filter '*' dev",
+    "build": "bun run --parallel --filter '*' build",
+    "typecheck": "bun run --parallel --filter '*' typecheck",
+    "lint": "oxlint apps/*/src packages/*/src",
+    "lint:fix": "oxlint apps/*/src packages/*/src --fix",
+    "fmt": "oxfmt apps/*/src packages/*/src --write",
+    "fmt:check": "oxfmt apps/*/src packages/*/src --check",
+    "test": "bun run --parallel --filter '*' test",
+    "ui": "bun run --filter '@bonne-garde/ui' registry",
+    "gen:commands": "bun scripts/gen-commands.ts",
+    "init": "bun scripts/init.ts"
+  },
+  "devDependencies": {
+    "oxfmt": "0.45.0",
+    "oxlint": "1.60.0",
+    "typescript": "6.0.3",
+    "@types/bun": "latest"
+  },
+  "packageManager": "bun@1.3.11",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@tanstack/react-form": "1.29.0",
+    "@tanstack/react-pacer": "0.22.0",
+    "@tanstack/react-query": "5.99.2",
+    "@tanstack/react-table": "8.21.3",
+    "@tanstack/react-virtual": "3.13.24",
+    "framer-motion": "12.38.0"
+  }
+}

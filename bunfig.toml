@@ -1,0 +1,11 @@
+[install]
+exact = true
+
+[run]
+shell = "bun"
+
+[test]
+preload = ["./src/test-setup.ts"]
+
+[app]
+minimumAgeRelease = "2 weeks"
