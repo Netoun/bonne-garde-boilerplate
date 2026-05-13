@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "strict": true,
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "types": ["@cloudflare/workers-types", "@types/node"],
+    "rootDirs": [".", "./.react-router/types"],
+    "paths": {
+      "+types/*": ["./.react-router/types/src/*"],
+      "@bonne-garde/ssr/*": ["./src/*"],
+      "@bonne-garde/assets/*": ["../../assets/*"],
+      "@bonne-garde/ui/*": ["../../packages/ui/src/*"],
+      "@bonne-garde/api/*": ["../../apps/api/src/*"],
+      "@bonne-garde/api": ["../../apps/api/src/index.ts"]
+    },
+  },
+  "include": [".react-router/types/**/*", "src/**/*"],
+  "exclude": ["node_modules", "build"],
+}

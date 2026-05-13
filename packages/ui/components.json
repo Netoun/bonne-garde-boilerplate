@@ -1,0 +1,19 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "base-vega",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "css": "src/styles/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "@bonne-garde/ui/components",
+    "utils": "@bonne-garde/ui/lib/utils",
+    "ui": "@bonne-garde/ui/components",
+    "lib": "@bonne-garde/ui/lib"
+  },
+  "iconLibrary": "lucide"
+}
