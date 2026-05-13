@@ -21,8 +21,8 @@
     "init": "bun scripts/init.ts"
   },
   "devDependencies": {
-    "oxfmt": "0.45.0",
-    "oxlint": "1.60.0",
+    "oxfmt": "0.49.0",
+    "oxlint": "1.64.0",
     "typescript": "6.0.3",
     "@types/bun": "latest"
   },
@@ -31,9 +31,9 @@
     "node": ">=22.12.0"
   },
   "dependencies": {
-    "@tanstack/react-form": "1.29.0",
+    "@tanstack/react-form": "1.32.0",
     "@tanstack/react-pacer": "0.22.0",
-    "@tanstack/react-query": "5.99.2",
+    "@tanstack/react-query": "5.100.10",
     "@tanstack/react-table": "8.21.3",
     "@tanstack/react-virtual": "3.13.24",
     "framer-motion": "12.38.0"
