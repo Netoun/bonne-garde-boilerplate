@@ -548,6 +548,24 @@ function setupEnvFiles(keptApps: string[]): void {
   }
 }
 
+function getExpectedEnvFiles(keptApps: string[]): string[] {
+  const files: string[] = [join(ROOT, ".env")];
+
+  for (const app of keptApps) {
+    if (app === "api") {
+      files.push(join(ROOT, "apps/api/.dev.vars"));
+      continue;
+    }
+    files.push(join(ROOT, `apps/${app}/.env`));
+  }
+
+  return files;
+}
+
+function hasMissingEnvFiles(keptApps: string[]): boolean {
+  return getExpectedEnvFiles(keptApps).some((filePath) => !existsSync(filePath));
+}
+
 // ─── Phase 3: DB setup ──────────────────────────────────────────────────────
 
 function setupDatabase(): void {
@@ -690,7 +708,7 @@ function main() {
 
   if (flags.skipEnv) {
     warn("Skipping env setup (--skip-env)");
-  } else if (state?.phases.envSetup !== "done" || flags.force) {
+  } else if (state?.phases.envSetup !== "done" || flags.force || hasMissingEnvFiles(keptApps)) {
     setupEnvFiles(keptApps);
   } else {
     done("Env setup already done");

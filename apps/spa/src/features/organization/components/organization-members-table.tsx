@@ -24,7 +24,7 @@ import type { OrganizationMember } from "../hooks/use-organization";
 interface OrganizationMembersTableProps {
   members: OrganizationMember[];
   currentUserId: string;
-  onRemoveMember: (userId: string) => void;
+  onRemoveMember: (memberId: string) => void;
   canRemove: boolean;
 }
 
@@ -118,7 +118,7 @@ export function OrganizationMembersTable({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => onRemoveMember(member.userId)}
+            onClick={() => onRemoveMember(member.memberId)}
             className="text-destructive hover:text-destructive"
           >
             <Trash2 className="h-4 w-4" />

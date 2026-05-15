@@ -5,34 +5,43 @@ import type { AppLoadContext } from "react-router";
 // --- Cloudflare context extension ---
 interface CloudflareContext extends AppLoadContext {
   cloudflare?: {
-    env: { API_URL: string };
+    env: { API_URL?: string };
   };
 }
 
 /** Unwrap a callable API segment (parameterized route) or return as-is (static route). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ApiRoute<T> = T extends (...args: any[]) => infer R ? R : T;
+type RouteFn = (...args: unknown[]) => unknown;
+type FirstArg<T extends RouteFn> = Parameters<T>[0];
+
+export type ApiRoute<T> = T extends RouteFn ? ReturnType<T> : T;
 
 /** Response data of an Eden endpoint method. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type EdenResponse<T extends (...args: any[]) => Promise<any>> = NonNullable<
-  Awaited<ReturnType<T>>["data"]
->;
+export type EdenResponse<T extends RouteFn> =
+  Awaited<ReturnType<T>> extends { data: infer Data } ? NonNullable<Data> : never;
 
 /** Request body of an Eden endpoint method (excludes `query` and `headers`). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type EdenBody<T extends (...args: any[]) => Promise<any>> =
-  NonNullable<Parameters<T>[0]> extends object
-    ? Omit<NonNullable<Parameters<T>[0]>, "query" | "headers">
+export type EdenBody<T extends RouteFn> =
+  NonNullable<FirstArg<T>> extends object
+    ? Omit<NonNullable<FirstArg<T>>, "query" | "headers">
     : never;
 
 /** Query params of an Eden endpoint method. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type EdenQuery<T extends (...args: any[]) => Promise<any>> = Parameters<T>[0] extends object
-  ? Parameters<T>[0]["query"] extends object
-    ? Parameters<T>[0]["query"]
-    : never
-  : never;
+export type EdenQuery<T extends RouteFn> =
+  FirstArg<T> extends { query: infer Query } ? (Query extends object ? Query : never) : never;
+
+function resolveApiUrl(context: CloudflareContext): string {
+  const apiUrl = context.cloudflare?.env.API_URL;
+  if (apiUrl) {
+    new URL(apiUrl);
+    return apiUrl;
+  }
+
+  if (import.meta.env.DEV) {
+    return "http://localhost:5172";
+  }
+
+  throw new Error("Missing API_URL in Cloudflare environment");
+}
 
 /**
  * SSR-only Eden Treaty client factory.
@@ -43,12 +52,10 @@ export type EdenQuery<T extends (...args: any[]) => Promise<any>> = Parameters<T
  *   const { data: game } = await api.games({ slug: "my-game" }).get();
  */
 export function createApi(context: CloudflareContext, request?: Request) {
-  const apiUrl = context.cloudflare?.env.API_URL ?? "http://localhost:5172";
-
+  const apiUrl = resolveApiUrl(context);
   const cookieHeader = request?.headers.get("cookie") ?? "";
-  // @ts-ignore
   return treaty<App>(apiUrl, {
-    headers: cookieHeader ? { Cookie: cookieHeader } : {},
+    headers: cookieHeader ? { cookie: cookieHeader } : {},
     fetch: {
       credentials: "include",
     },

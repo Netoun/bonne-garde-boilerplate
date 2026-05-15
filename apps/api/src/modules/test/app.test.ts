@@ -3,8 +3,6 @@ import { cors } from "@elysiajs/cors";
 import { treaty } from "@elysiajs/eden";
 import { createTestDb } from "./db.test";
 
-import { organizationsModule } from "../organizations/organizations.module";
-
 export function createTestApp() {
   const db = createTestDb();
 
@@ -18,8 +16,7 @@ export function createTestApp() {
       PLAYER_URL: "http://localhost:5174",
       BO_URL: "http://localhost:5173",
     })
-    .get("/health", () => ({ status: "ok", timestamp: Date.now() }))
-    .use(organizationsModule);
+    .get("/health", () => ({ status: "ok", timestamp: Date.now() }));
 
   return { app, db, api: treaty(app) };
 }

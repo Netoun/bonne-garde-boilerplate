@@ -45,14 +45,14 @@ export default function OrganizationMembers({ params }: Route.ComponentProps) {
   // Check if current user can manage members (simplified - should use actual auth)
   const canManageMembers = true; // TODO: Check actual user role
 
-  const handleInvite = async (email: string, role: string) => {
+  const handleInvite = async (email: string, role: "member" | "admin") => {
     if (!organization?.id) return;
     await addMember.mutateAsync({ orgId: organization.id, data: { email, role } });
   };
 
-  const handleRemove = async (userId: string) => {
+  const handleRemove = async (memberId: string) => {
     if (!organization?.id) return;
-    await removeMember.mutateAsync({ orgId: organization.id, userId });
+    await removeMember.mutateAsync({ orgId: organization.id, memberId });
   };
 
   return (

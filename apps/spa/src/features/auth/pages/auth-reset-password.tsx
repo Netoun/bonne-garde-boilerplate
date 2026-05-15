@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams, Link, useLocation } from "react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { authClient } from "@bonne-garde/spa/lib/auth";
@@ -11,8 +11,10 @@ import { resetPasswordSchema, type ResetPasswordSchema } from "../validation";
 
 export default function AuthResetPassword() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
+  const tokenRef = useRef<string | null>(searchParams.get("token"));
+  const token = tokenRef.current;
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,6 +31,14 @@ export default function AuthResetPassword() {
       setError("Missing or invalid reset token.");
     }
   }, [token]);
+
+  useEffect(() => {
+    if (!searchParams.has("token")) return;
+    const cleanParams = new URLSearchParams(searchParams);
+    cleanParams.delete("token");
+    const nextSearch = cleanParams.toString();
+    navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ""}`, { replace: true });
+  }, [location.pathname, navigate, searchParams]);
 
   const onSubmit = async (data: ResetPasswordSchema) => {
     if (!token) return;

@@ -15,6 +15,7 @@ import {
   useUpdateOrganization,
   useAddMember,
   useRemoveMember,
+  type OrganizationRole,
 } from "../hooks/use-organization";
 
 export default function OrganizationSettings({ params }: Route.ComponentProps) {
@@ -28,7 +29,7 @@ export default function OrganizationSettings({ params }: Route.ComponentProps) {
   const removeMember = useRemoveMember();
 
   // TODO: Get actual user from auth context
-  const user = { id: "", role: "member" };
+  const user = { id: "", role: "member" as OrganizationRole };
   const currentUserMember = members.find((m) => m.userId === user.id);
   const canManageMembers =
     currentUserMember?.role === "owner" || currentUserMember?.role === "admin";
@@ -82,7 +83,7 @@ export default function OrganizationSettings({ params }: Route.ComponentProps) {
     }
   };
 
-  const handleInvite = async (email: string, role: string) => {
+  const handleInvite = async (email: string, role: "member" | "admin") => {
     if (!organization?.id) return;
     await addMember.mutateAsync({ orgId: organization.id, data: { email, role } });
   };
@@ -99,9 +100,9 @@ export default function OrganizationSettings({ params }: Route.ComponentProps) {
     await updateOrg.mutateAsync({ id: organization.id, data });
   };
 
-  const handleRemoveMember = async (userId: string) => {
+  const handleRemoveMember = async (memberId: string) => {
     if (!organization?.id) return;
-    await removeMember.mutateAsync({ orgId: organization.id, userId });
+    await removeMember.mutateAsync({ orgId: organization.id, memberId });
   };
 
   return (

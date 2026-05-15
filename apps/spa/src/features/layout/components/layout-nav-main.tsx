@@ -19,8 +19,6 @@ interface NavItem {
 function useNavigationItems(): NavItem[] {
   const { data: organizations } = useOrganizations();
 
-  const isAdmin = organizations?.some((org) => org.role === "owner" || org.role === "admin");
-
   const baseItems: NavItem[] = [
     {
       title: "Dashboard",
@@ -29,15 +27,13 @@ function useNavigationItems(): NavItem[] {
     },
   ];
 
-  // If admin → link to list of all organizations
-  // Otherwise → link to members of their first organization (if any)
-  if (isAdmin) {
-    baseItems.push({
-      title: "Organizations",
-      url: "/organizations",
-      icon: Building2,
-    });
-  } else if (organizations && organizations.length > 0) {
+  baseItems.push({
+    title: "Organizations",
+    url: "/organizations",
+    icon: Building2,
+  });
+
+  if (organizations && organizations.length > 0) {
     const firstOrg = organizations[0];
     baseItems.push({
       title: "My organization",

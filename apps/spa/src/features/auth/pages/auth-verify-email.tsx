@@ -1,15 +1,26 @@
 import { useEffect, useState, useRef } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { authClient } from "@bonne-garde/spa/lib/auth";
 import { Alert, AlertDescription } from "@bonne-garde/ui/components/alert";
 import { Loader2 } from "lucide-react";
 
 export default function AuthVerifyEmail() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
+  const tokenRef = useRef<string | null>(searchParams.get("token"));
+  const token = tokenRef.current;
+  const navigate = useNavigate();
+  const location = useLocation();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const hasVerified = useRef(false);
+
+  useEffect(() => {
+    if (!searchParams.has("token")) return;
+    const cleanParams = new URLSearchParams(searchParams);
+    cleanParams.delete("token");
+    const nextSearch = cleanParams.toString();
+    navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ""}`, { replace: true });
+  }, [location.pathname, navigate, searchParams]);
 
   useEffect(() => {
     if (!token) {

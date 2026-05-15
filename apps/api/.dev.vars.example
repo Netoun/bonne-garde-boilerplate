@@ -1,3 +1,7 @@
 # Secrets Cloudflare Worker — copier en .dev.vars (ne pas committer)
 BETTER_AUTH_SECRET=changeme-minimum-32-characters-long
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Queue
+QUEUE_NAME=bg-default
+# Email
+EMAIL_FROM=no-reply@example.com

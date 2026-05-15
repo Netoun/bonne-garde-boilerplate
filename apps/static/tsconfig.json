@@ -14,6 +14,8 @@
     "paths": {
       "@bonne-garde/static/*": ["./src/*"],
       "@bonne-garde/ui/*": ["../../packages/ui/src/*"],
+      "@bonne-garde/emails": ["../../packages/emails/src/index.ts"],
+      "@bonne-garde/emails/*": ["../../packages/emails/src/*"],
       "@bonne-garde/api/*": ["../../apps/api/src/*"],
       "@bonne-garde/assets/*": ["../../assets/*"]
     },

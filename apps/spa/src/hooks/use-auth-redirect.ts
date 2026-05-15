@@ -18,6 +18,12 @@ function isSpecialAuthRoute(pathname: string): boolean {
   return specialAuthRoutes.some((route) => pathname.startsWith(route));
 }
 
+function sanitizeRedirectPath(redirectParam: string | null): string | null {
+  if (!redirectParam) return null;
+  if (!redirectParam.startsWith("/") || redirectParam.startsWith("//")) return null;
+  return redirectParam;
+}
+
 export function useAuthRedirect() {
   const { data: sessionData, isPending } = authClient.useSession();
   const [searchParams] = useSearchParams();
@@ -42,11 +48,11 @@ export function useAuthRedirect() {
       !isSpecialAuthRoute(location.pathname)
     ) {
       const redirectParams = searchParams.get("redirect");
-      if (redirectParams) {
-        const redirect = decodeURIComponent(redirectParams);
-        navigate(redirect);
+      const redirectPath = sanitizeRedirectPath(redirectParams);
+      if (redirectPath) {
+        navigate(redirectPath, { replace: true });
       } else {
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
       }
     }
   }, [sessionData, navigate, isPending, location.pathname, location.search, searchParams]);

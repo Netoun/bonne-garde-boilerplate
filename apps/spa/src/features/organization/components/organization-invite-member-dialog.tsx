@@ -21,13 +21,13 @@ import {
 } from "@bonne-garde/ui/components/select";
 
 interface OrganizationInviteMemberDialogProps {
-  onInvite: (email: string, role: string) => Promise<void>;
+  onInvite: (email: string, role: "member" | "admin") => Promise<void>;
 }
 
 export function OrganizationInviteMemberDialog({ onInvite }: OrganizationInviteMemberDialogProps) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("member");
+  const [role, setRole] = useState<"member" | "admin">("member");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,7 +87,10 @@ export function OrganizationInviteMemberDialog({ onInvite }: OrganizationInviteM
             </div>
             <div className="grid gap-2">
               <Label htmlFor="role">Role</Label>
-              <Select value={role} onValueChange={(value) => setRole(value || "member")}>
+              <Select
+                value={role}
+                onValueChange={(value) => setRole(value === "admin" ? "admin" : "member")}
+              >
                 <SelectTrigger id="role">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
