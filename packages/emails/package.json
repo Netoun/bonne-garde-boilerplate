@@ -6,6 +6,6 @@
   "main": "src/index.ts",
   "dependencies": {
     "@react-email/render": "2.0.8",
-    "react": "19.2.6"
+    "react": "19.2.7"
   }
 }
