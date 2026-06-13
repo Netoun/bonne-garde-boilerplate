@@ -4,8 +4,17 @@
   "private": true,
   "type": "module",
   "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
   "dependencies": {
     "@react-email/render": "2.0.8",
-    "react": "19.2.6"
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^6.0.3"
   }
 }

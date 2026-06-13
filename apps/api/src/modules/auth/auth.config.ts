@@ -1,4 +1,3 @@
-// oxlint-disable no-console
 import { betterAuth } from "better-auth";
 import { scrypt, randomBytes } from "node:crypto";
 import { organization } from "better-auth/plugins";
@@ -13,6 +12,7 @@ import {
 import { createResendClient, sendEmail } from "@bonne-garde/api/lib/email";
 import { VerifyEmailEmail, ResetPasswordEmail } from "@bonne-garde/emails";
 import { config } from "@bonne-garde/api/lib/app.config";
+import { logger } from "@bonne-garde/api/lib/logger";
 
 function generateSlug(name: string): string {
   const base = name
@@ -82,7 +82,11 @@ export function createAuth() {
             }),
           });
         } catch (error) {
-          console.error("Failed to send reset password email:", error);
+          logger.error("Failed to send reset password email", error, {
+            scope: "auth",
+            event: "send_reset_password_email",
+            userId: user.id,
+          });
           throw error;
         }
       },
@@ -105,7 +109,11 @@ export function createAuth() {
             }),
           });
         } catch (error) {
-          console.error("Failed to send verification email:", error);
+          logger.error("Failed to send verification email", error, {
+            scope: "auth",
+            event: "send_verification_email",
+            userId: user.id,
+          });
           throw error;
         }
       },
@@ -138,11 +146,19 @@ export function createAuth() {
                 createdAt: new Date(),
               });
 
-              console.log(
-                `[Auth] Created default organization "${orgName}" (${orgId}) for user ${user.id}`,
-              );
+              logger.info("Created default organization", {
+                scope: "auth",
+                event: "default_org_created",
+                userId: user.id,
+                orgId,
+                orgName,
+              });
             } catch (error) {
-              console.error("[Auth] Failed to create default organization:", error);
+              logger.error("Failed to create default organization", error, {
+                scope: "auth",
+                event: "default_org_creation_failed",
+                userId: user.id,
+              });
               // Don't throw - user creation should not fail if org creation fails
             }
           },
@@ -168,9 +184,12 @@ export function createAuth() {
                   ...session,
                   activeOrganizationId: userOrg[0].orgId,
                 };
-                console.log(
-                  `[Auth] Auto-setting active organization ${userOrg[0].orgId} for user ${session.userId}`,
-                );
+                logger.info("Auto-setting active organization", {
+                  scope: "auth",
+                  event: "session_org_set",
+                  userId: session.userId,
+                  orgId: userOrg[0].orgId,
+                });
                 return {
                   data: newSession,
                 };
@@ -178,11 +197,28 @@ export function createAuth() {
 
               return { data: session };
             } catch (error) {
-              console.error("[Auth] Failed to set active organization:", error);
+              logger.error("Failed to set active organization", error, {
+                scope: "auth",
+                event: "session_org_set_failed",
+                userId: session.userId,
+              });
               return { data: session };
             }
           },
         },
+      },
+    },
+    // Rate limiting — default storage is in-memory (per-isolate on Workers).
+    // Can be moved to secondary storage (e.g. KV) later for cross-isolate consistency.
+    rateLimit: {
+      enabled: true,
+      window: 60, // 60-second window
+      max: 100, // generous global default
+      customRules: {
+        "/sign-in/email": { window: 60, max: 10 },
+        "/sign-up/email": { window: 60, max: 5 },
+        "/forget-password": { window: 60, max: 5 },
+        "/reset-password": { window: 60, max: 5 },
       },
     },
     plugins: [organization()],

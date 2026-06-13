@@ -1,4 +1,5 @@
 import type { Route } from "./+types/organization-settings-page";
+import { useState } from "react";
 import { Link } from "react-router";
 import { Building2, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@bonne-garde/ui/components/card";
@@ -6,6 +7,7 @@ import { Button } from "@bonne-garde/ui/components/button";
 import { Input } from "@bonne-garde/ui/components/input";
 import { Label } from "@bonne-garde/ui/components/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@bonne-garde/ui/components/tabs";
+import { apiV1 } from "@bonne-garde/spa/lib/api";
 import { OrganizationForm } from "../components/organization-form";
 import { OrganizationMembersTable } from "../components/organization-members-table";
 import { OrganizationInviteMemberDialog } from "../components/organization-invite-member-dialog";
@@ -27,6 +29,7 @@ export default function OrganizationSettings({ params }: Route.ComponentProps) {
   const updateOrg = useUpdateOrganization();
   const addMember = useAddMember();
   const removeMember = useRemoveMember();
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // TODO: Get actual user from auth context
   const user = { id: "", role: "member" as OrganizationRole };
@@ -64,23 +67,24 @@ export default function OrganizationSettings({ params }: Route.ComponentProps) {
     const file = event.target.files?.[0];
     if (!file || !organization?.id) return;
 
-    const formData = new FormData();
-    formData.append("file", file);
+    setUploadError(null);
 
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/v1/media/upload`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
+    const { data, error } = await apiV1.media.post({ file, organizationId: organization.id });
 
-      if (!response.ok) throw new Error("Upload failed");
-
-      const data: { url: string } = await response.json();
-      await updateOrg.mutateAsync({ id: organization.id, data: { logo: data.url } });
-    } catch {
-      // Upload failed silently, user can retry
+    if (error) {
+      const value = error.value;
+      const message =
+        value !== null &&
+        typeof value === "object" &&
+        "error" in value &&
+        typeof value.error === "string"
+          ? value.error
+          : "Upload failed";
+      setUploadError(message);
+      return;
     }
+
+    await updateOrg.mutateAsync({ id: organization.id, data: { logo: data.url } });
   };
 
   const handleInvite = async (email: string, role: "member" | "admin") => {
@@ -190,6 +194,11 @@ export default function OrganizationSettings({ params }: Route.ComponentProps) {
                   <p className="text-xs text-muted-foreground mt-2">
                     Recommended format: 200x200px, JPG or PNG
                   </p>
+                  {uploadError && (
+                    <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md mt-2">
+                      {uploadError}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

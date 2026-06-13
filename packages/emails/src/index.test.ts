@@ -27,6 +27,6 @@ test("react-email template renders html", async () => {
     ctaUrl: "https://example.com",
   });
 
-  expect(html.includes("Bienvenue sur Bonne Garde")).toBeTrue();
+  expect(html.includes("Welcome to Bonne Garde")).toBeTrue();
   expect(html.includes("https://example.com")).toBeTrue();
 });

@@ -2,6 +2,7 @@ import "elysia";
 import { Elysia } from "elysia";
 import { CloudflareAdapter } from "elysia/adapter/cloudflare-worker";
 import { cors } from "@elysiajs/cors";
+import { openapi } from "@elysiajs/openapi";
 import { config } from "@bonne-garde/api/lib/app.config";
 import { dbModule } from "@bonne-garde/api/modules/db/db.module";
 import { authModule } from "@bonne-garde/api/modules/auth/auth.module";
@@ -15,6 +16,17 @@ export const app = new Elysia({ aot: false, adapter: CloudflareAdapter })
         return [config.BO_URL, config.PLAYER_URL].includes(origin);
       },
       credentials: true,
+    }),
+  )
+  .use(
+    openapi({
+      documentation: {
+        info: {
+          title: "Bonne Garde API",
+          description: "API for the Bonne Garde platform",
+          version: "0.0.1",
+        },
+      },
     }),
   )
   .use(dbModule)

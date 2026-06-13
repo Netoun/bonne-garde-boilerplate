@@ -34,7 +34,7 @@ const withDefaults = Default(appEnvSchema, workersEnv);
 // Validate synchronously at import time - crash on missing required vars
 if (!Check(appEnvSchema, withDefaults)) {
   const testDefaults: Record<string, string> = {
-    R2_PUBLIC_URL: "http://localhost:8787/media",
+    R2_PUBLIC_URL: "http://localhost:5172/v1/media/file",
     BETTER_AUTH_SECRET: "test-auth-secret-min-32-chars-long!!",
     RESEND_API_KEY: "test-resend-api-key",
   };
