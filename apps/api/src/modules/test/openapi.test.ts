@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { Elysia } from "elysia";
-import { openapi } from "@elysia/openapi";
+import { openapi } from "@elysiajs/openapi";
 
 const app = new Elysia().use(
   openapi({ documentation: { info: { title: "Bonne Garde API", version: "0.0.1" } } }),
