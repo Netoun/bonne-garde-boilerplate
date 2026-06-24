@@ -23,13 +23,13 @@
     "init": "bun scripts/init.ts"
   },
   "devDependencies": {
-    "oxfmt": "0.45.0",
-    "oxlint": "1.60.0",
+    "oxfmt": "0.56.0",
+    "oxlint": "1.71.0",
     "typescript": "6.0.3",
     "@types/bun": "latest",
     "@types/react": "19.2.6",
     "husky": "9.1.7",
-    "lint-staged": "15.5.2"
+    "lint-staged": "17.0.8"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs}": [
