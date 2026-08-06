@@ -4,17 +4,17 @@ Full-stack monorepo boilerplate **for Cloudflare**: Bun + Elysia (Workers) + Dri
 
 ## Stack
 
-| Layer | Tech |
-|-------|------|
-| Runtime | Bun |
-| API | Elysia (Cloudflare Workers) |
-| Database | Drizzle + D1 (SQLite) |
-| Auth | Better-auth (email/password, sessions, verification) |
-| Backoffice | React Router v7 (SPA) + shadcn/ui |
-| Player | React Router v7 (SSR) + shadcn/ui |
-| Landing | React Router v7 (Static) + shadcn/ui |
-| Storage | Cloudflare R2 |
-| Email | Resend + React-Email |
+| Layer      | Tech                                                 |
+| ---------- | ---------------------------------------------------- |
+| Runtime    | Bun                                                  |
+| API        | Elysia (Cloudflare Workers)                          |
+| Database   | Drizzle + D1 (SQLite)                                |
+| Auth       | Better-auth (email/password, sessions, verification) |
+| Backoffice | React Router v7 (SPA) + shadcn/ui                    |
+| Player     | React Router v7 (SSR) + shadcn/ui                    |
+| Landing    | React Router v7 (Static) + shadcn/ui                 |
+| Storage    | Cloudflare R2                                        |
+| Email      | Resend + React-Email                                 |
 
 ## Structure
 
@@ -51,14 +51,16 @@ bun run dev
 ## Default Admin
 
 After seeding:
+
 - Email: `admin@bonne-garde.local`
 - Password: `password123`
 
 ## Commands
 
 ```bash
-bun run lint        # oxlint
-bun run fmt:check    # oxfmt --check
+bun run lint        # vp lint (Oxlint via Vite+)
+bun run fmt:check   # vp fmt --check
+bun run check       # vp check (fmt + lint)
 bun run typecheck   # tsc across all packages
 bun run test        # all tests
 ```
@@ -75,4 +77,5 @@ See [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md) for conventions.
 - [Environment](./docs/ENVIRONMENT.md)
 - [Rules](./docs/RULES.md)
 - [Testing](./docs/TESTING.md)
-- [Agent instructions](./AGENTS.md)
+- [Agent instructions](./AGENTS.md) — canonical for Codex / OpenCode / Cursor / Claude Code
+- [Agent tooling](./docs/AGENTING.md) — how shims stay in sync across tools

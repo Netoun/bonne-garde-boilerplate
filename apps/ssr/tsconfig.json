@@ -21,8 +21,8 @@
       "@bonne-garde/emails/*": ["../../packages/emails/src/*"],
       "@bonne-garde/api/*": ["../../apps/api/src/*"],
       "@bonne-garde/api": ["../../apps/api/src/index.ts"]
-    },
+    }
   },
   "include": [".react-router/types/**/*", "src/**/*"],
-  "exclude": ["node_modules", "build"],
+  "exclude": ["node_modules", "build"]
 }

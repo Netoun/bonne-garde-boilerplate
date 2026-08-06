@@ -1,8 +1,7 @@
 # Rules — Clean Code, TDD, Types
 
-> Non-negotiable rules that apply to **all** code in the monorepo.
-> For the stack and technical decisions, see [`AGENTS.md`](../AGENTS.md).
-> For test patterns, see [`TESTING.md`](./TESTING.md).
+> Deep engineering rules for the monorepo. Agents: start from [`AGENTS.md`](../AGENTS.md), then open this file when the task needs detail.
+> Test patterns → [`TESTING.md`](./TESTING.md). Multi-tool agent wiring → [`AGENTING.md`](./AGENTING.md).
 
 ---
 
@@ -36,11 +35,11 @@ For each feature:
 
 ### Minimum Coverage
 
-| Type | Cases to cover |
-|------|----------------|
-| API Routes | All status codes (200, 400, 401, 403, 404) |
-| Forms | Client validation + successful submission + server error |
-| SSR Loaders | Nominal case + all error cases |
+| Type        | Cases to cover                                           |
+| ----------- | -------------------------------------------------------- |
+| API Routes  | All status codes (200, 400, 401, 403, 404)               |
+| Forms       | Client validation + successful submission + server error |
+| SSR Loaders | Nominal case + all error cases                           |
 
 ### Hard Rules
 
@@ -83,21 +82,21 @@ Prefer extending existing API route types rather than re-declaring contracts.
 
 ## 4. Product Conventions — Non-Negotiable
 
-| Domain | Rule |
-|--------|------|
-| API Types | Always via **Eden Treaty**, never manual fetch |
-| Auth | Better-auth on API side only — fronts use better-auth client |
-| Routing | File-based React Router v7 (bo + player) |
-| Components | **shadcn via CLI** (`bunx shadcn add ...`), never copied by hand |
-| Styles | Tailwind utility + `packages/ui/global.css` for tokens |
-| Server state | Loaders/actions (player SSR) or Eden (bo SPA) |
-| Client state | **Zustand** only (UI/client non-server) |
-| Validation | **Zod** client-side + **TypeBox** API-side (Elysia input) |
-| Emails | React-Email for templates, Resend as provider |
-| Media | R2, signed URLs for private access |
-| Rich editor | TipTap in Notion-like block mode |
-| Maps | React-Leaflet |
-| QR codes | `qrcode` lib |
+| Domain       | Rule                                                             |
+| ------------ | ---------------------------------------------------------------- |
+| API Types    | Always via **Eden Treaty**, never manual fetch                   |
+| Auth         | Better-auth on API side only — fronts use better-auth client     |
+| Routing      | File-based React Router v7 (bo + player)                         |
+| Components   | **shadcn via CLI** (`bunx shadcn add ...`), never copied by hand |
+| Styles       | Tailwind utility + `packages/ui/global.css` for tokens           |
+| Server state | Loaders/actions (player SSR) or Eden (bo SPA)                    |
+| Client state | **Zustand** only (UI/client non-server)                          |
+| Validation   | **Zod** client-side + **TypeBox** API-side (Elysia input)        |
+| Emails       | React-Email for templates, Resend as provider                    |
+| Media        | R2, signed URLs for private access                               |
+| Rich editor  | TipTap in Notion-like block mode                                 |
+| Maps         | React-Leaflet                                                    |
+| QR codes     | `qrcode` lib                                                     |
 
 ---
 

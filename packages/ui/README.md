@@ -16,9 +16,9 @@ bun add @bonne-garde/ui
 ## Usage
 
 ```typescript
-import { Button } from '@bonne-garde/ui/components/ui/button'
-import { cn } from '@bonne-garde/ui/lib/utils'
-import '@bonne-garde/ui/styles/global.css'
+import { Button } from "@bonne-garde/ui/components/ui/button";
+import { cn } from "@bonne-garde/ui/lib/utils";
+import "@bonne-garde/ui/styles/global.css";
 ```
 
 ## Architecture

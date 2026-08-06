@@ -1,6 +1,7 @@
 # Architecture
 
 <!-- GEN:START -->
+
 > Auto-generated from `package.json` files. Regenerate: `bun run gen:architecture`. Last: 2026-05-13.
 
 ## Overview
@@ -9,20 +10,19 @@ Bonne Garde is a Bun monorepo with 4 apps and 2 packages, deployed on Cloudflare
 
 ### Apps
 
-| App | Framework | Mode | Platform |
-|-----|-----------|------|----------|
-| `apps/api` | Elysia | CF Worker | Workers |
-| `apps/spa` | React Router v7 | SPA | Pages |
-| `apps/ssr` | React Router v7 | SSR | Pages |
-| `apps/static` | React Router v7 | SPA | Pages |
+| App           | Framework       | Mode      | Platform |
+| ------------- | --------------- | --------- | -------- |
+| `apps/api`    | Elysia          | CF Worker | Workers  |
+| `apps/spa`    | React Router v7 | SPA       | Pages    |
+| `apps/ssr`    | React Router v7 | SSR       | Pages    |
+| `apps/static` | React Router v7 | SPA       | Pages    |
 
 ### Packages
 
-| Package | Role |
-|---------|------|
-| `packages/emails` | React-Email templates |
-| `packages/ui` | shadcn/ui + global CSS |
-
+| Package           | Role                   |
+| ----------------- | ---------------------- |
+| `packages/emails` | React-Email templates  |
+| `packages/ui`     | shadcn/ui + global CSS |
 
 <!-- GEN:END -->
 
@@ -32,8 +32,8 @@ All front apps communicate with the API via **Eden Treaty**, a type-safe HTTP cl
 
 ```typescript
 // lib/api.ts
-export const api = treaty<App>('https://api.bonne-garde.com')
-const { data } = await api.scenarios({ slug }).get()
+export const api = treaty<App>("https://api.bonne-garde.com");
+const { data } = await api.scenarios({ slug }).get();
 ```
 
 - **SPA apps**: Eden calls from the browser, session via HTTP-only cookie

@@ -11,6 +11,7 @@ Corners are generous everywhere. The design does not tolerate sharp edges. This 
 Motion is springy and physical. Buttons scale on press, cards lift on hover, overlays scale into existence. The spring physics feel like picking up a physical object — there is a slight overshoot, a sense of weight. This physicality reinforces the treasure hunt metaphor: every interaction feels like touching something real.
 
 **Key characteristics:**
+
 - Periwinkle primary, terracotta secondary, sage tertiary — adventurous but grounded
 - Generous rounded corners throughout — nothing sharp
 - Faustina serif headings + Urbanist sans body — editorial cartographic voice
@@ -23,25 +24,30 @@ Motion is springy and physical. Buttons scale on press, cards lift on hover, ove
 ## 2. Color Palette & Roles
 
 ### Backgrounds & Surfaces
+
 - **Background**: Main page surface. Near-white with a faint violet undertone in light mode; deep desaturated indigo in dark mode. Never pure white or pure black.
 - **Card**: Slightly elevated surface — used for cards, panels, form sections. Marginally lighter than background in light mode.
 - **Popover**: Floating surface for dropdowns, tooltips, menus. The lightest surface in the stack.
 
 ### Brand Colours
+
 - **Primary — Periwinkle**: A calm, slightly cool blue-violet. Used for primary CTAs, active states, selected items, progress. The dominant interactive colour.
 - **Secondary — Terracotta**: Warm reddish-orange. Used for secondary CTAs, badges indicating energy or action (e.g. "live game"). Conveys warmth without urgency.
 - **Tertiary — Sage**: Muted green. Used for success states, "found" badges, resolved statuses. Calming and conclusive.
 
 ### Neutral & Utility
+
 - **Muted**: Warm mid-gray background for de-emphasised areas — empty states, disabled zones, helper sections. Paired with a subdued muted text colour.
 - **Accent**: Pale gold. Used as hover background on ghost and navigation elements, never as a standalone decorative colour.
 - **Foreground**: Primary body text — near-black in light mode, near-white in dark mode. Slightly warmer than pure black to reduce harshness.
 
 ### Semantic
+
 - **Destructive**: Brick red. Delete confirmations, error states, irreversible actions. Never used decoratively.
 - **Border**: Default outline for cards and dividers. Subtle — exists to structure, not to decorate.
 
 ### Sidebar
+
 The sidebar has its own parallel colour set with slightly adjusted values suited to its narrower, navigational context. Conceptually it mirrors the main palette but reads slightly cooler and more recessed.
 
 ---
@@ -49,12 +55,14 @@ The sidebar has its own parallel colour set with slightly adjusted values suited
 ## 3. Typography
 
 ### Typefaces
+
 - **Urbanist** (geometric sans-serif): Body text, labels, buttons, inputs, all UI copy. Rendered at a slightly heavier weight than typical body text, giving the interface a quiet confidence.
 - **Faustina** (transitional serif): Headings only — h1 through h6. The serif voice carries the editorial, cartographic register. It feels like a title on a map or chapter opener in a field guide.
 
 The contrast between these two typefaces does most of the hierarchy work. A Faustina heading above Urbanist body text creates a clear shift in register without needing dramatic size differences.
 
 ### Principles
+
 - **Headings track tight**: Faustina headings always use negative letter-spacing. This creates a compressed, engraved quality — like text stamped into a map. Never widen heading tracking.
 - **Weight restraint**: Body text lives at medium. Headings at semibold. Bold is used sparingly for critical emphasis. Avoid light weights — they undermine the cozy, grounded feel.
 - **No wide tracking anywhere**: Loose letter-spacing is not part of this aesthetic at any size.
@@ -73,14 +81,14 @@ Nothing in this interface uses sharp corners except as a deliberate semantic sig
 
 Shadows are soft and diffused — they suggest lift, not drama. The effect is closer to placing an object on a desk under ambient light than to spotlighting it.
 
-| Level | Character | Use |
-|---|---|---|
-| Hairline | 1px, barely perceptible | Chips, inline tags |
-| Resting | 1–3px, gentle | Cards at rest, default elevation |
-| Comfortable | 4–6px | Interactive cards, dropdowns |
-| Raised | 6–12px | Modals, command palettes, toasts |
-| Hovering | 10–25px, wide | Hover state, active modals |
-| Floating | 20–40px, airy | Sheets, overlays |
+| Level       | Character               | Use                              |
+| ----------- | ----------------------- | -------------------------------- |
+| Hairline    | 1px, barely perceptible | Chips, inline tags               |
+| Resting     | 1–3px, gentle           | Cards at rest, default elevation |
+| Comfortable | 4–6px                   | Interactive cards, dropdowns     |
+| Raised      | 6–12px                  | Modals, command palettes, toasts |
+| Hovering    | 10–25px, wide           | Hover state, active modals       |
+| Floating    | 20–40px, airy           | Sheets, overlays                 |
 
 The typical card animation moves from its resting shadow to the hovering shadow, combined with a 2px upward lift — the impression of physically picking the card up off the surface.
 
@@ -89,7 +97,9 @@ The typical card animation moves from its resting shadow to the hovering shadow,
 ## 6. Components
 
 ### Buttons
+
 Six visual variants express the full range of action weight:
+
 - **Default** (periwinkle fill): Primary action. One per view.
 - **Outline**: Secondary action. Same weight as default but less dominant.
 - **Secondary** (terracotta fill): Alternative primary — used when the primary action has a warm/energetic quality.
@@ -100,15 +110,19 @@ Six visual variants express the full range of action weight:
 Buttons come in four sizes (extra-small to large) plus dedicated icon-only sizes. All interactive buttons have a physical press feel — a slight scale-down on tap, scale-up on hover.
 
 ### Badges
+
 Six variants mirror the colour palette: default (periwinkle), secondary (terracotta), tertiary (sage), outline, ghost, and destructive. Always pill-shaped. Used for statuses, counts, and labels — not for navigation. Subtle hover and press scale animation built in.
 
 ### Cards
+
 The primary content container. Cards rest with a gentle shadow, lift on hover with a spring animation. Corners are large — featured cards rounder than standard ones. Card surfaces are slightly lighter than the page background to create natural layering.
 
 ### Empty States
+
 Dedicated component for zero-data views. Always present an illustration, a clear heading in Faustina, and a primary action. Never leave a blank surface without guidance.
 
 ### Entity Cards
+
 Specialised card for domain objects (scenario, game, team, puzzle). Consistent structure: status badge top-right, Faustina title, Urbanist metadata, action row at bottom.
 
 ---
@@ -116,21 +130,26 @@ Specialised card for domain objects (scenario, game, team, puzzle). Consistent s
 ## 7. Motion & Animation
 
 ### Philosophy
+
 Motion reinforces the physical metaphor. Every interaction should feel like touching an object that has weight and spring. Nothing snaps instantly; nothing lingers. The default rhythm is a soft spring — a slight overshoot that settles naturally.
 
 ### Interaction States
+
 - **Hover**: Cards lift slightly upward with shadow expansion. Buttons grow very slightly.
 - **Press / tap**: Elements shrink slightly to simulate physical depression.
 - **Focus**: A periwinkle ring (matching primary) appears with a small offset. Never hidden.
 - **Disabled**: No animation. Static, reduced opacity.
 
 ### Entrance Animations
+
 Elements appearing on screen should fade and slide up from just below their resting position, or scale in from slightly smaller with a soft spring. Lists and grids stagger their children with a small delay — fast enough to feel sequential, not slow enough to feel theatrical.
 
 ### Exit Animations
+
 Departing elements fade and scale down slightly. Exits are fast — they should not make the user wait.
 
 ### Decorative Animations
+
 Certain illustrative or ambient elements use looping CSS animations: a gentle vertical float (6s, continuous) for map pins and hero illustrations, a subtle opacity pulse (2s) for live/active indicators.
 
 ---
@@ -138,6 +157,7 @@ Certain illustrative or ambient elements use looping CSS animations: a gentle ve
 ## 8. Do's and Don'ts
 
 ### Do
+
 - Use the periwinkle/terracotta/sage palette to communicate hierarchy of actions — primary, secondary, status
 - Let Faustina headings do the editorial heavy lifting — trust the serif to create register shifts
 - Round everything — default to more radius, not less
@@ -147,6 +167,7 @@ Certain illustrative or ambient elements use looping CSS animations: a gentle ve
 - Keep shadows soft and wide — elevation through blur, not hard offsets
 
 ### Don't
+
 - Don't use sharp corners on interactive elements — it breaks the aesthetic contract
 - Don't use the destructive colour for anything other than irreversible/dangerous actions
 - Don't widen letter-spacing on Faustina headings — tight tracking is essential to its voice

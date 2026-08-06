@@ -1,15 +1,7 @@
 {
   "version": 1,
-  "keptApps": [
-    "api",
-    "spa",
-    "ssr",
-    "static"
-  ],
-  "keptPackages": [
-    "ui",
-    "emails"
-  ],
+  "keptApps": ["api", "spa", "ssr", "static"],
+  "keptPackages": ["ui", "emails"],
   "phases": {
     "selection": "done",
     "envSetup": "done",

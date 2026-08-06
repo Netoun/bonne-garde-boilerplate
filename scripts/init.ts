@@ -55,15 +55,6 @@ interface InitState {
   };
 }
 
-function defaultState(keptApps: string[], keptPackages: string[]): InitState {
-  return {
-    version: 1,
-    keptApps,
-    keptPackages,
-    phases: { selection: "pending", envSetup: "pending", dbSetup: "pending" },
-  };
-}
-
 function loadState(): InitState | null {
   if (!existsSync(STATE_PATH)) return null;
   try {

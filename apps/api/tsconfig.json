@@ -18,8 +18,8 @@
       "@bonne-garde/api/*": ["./src/*"],
       "@bonne-garde/emails": ["../../packages/emails/src/index.ts"],
       "@bonne-garde/emails/*": ["../../packages/emails/src/*"]
-    },
+    }
   },
   "include": ["src", "tests"],
-  "exclude": ["src/**/*.test.ts"],
+  "exclude": ["src/**/*.test.ts"]
 }

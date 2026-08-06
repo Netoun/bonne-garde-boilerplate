@@ -1,51 +1,44 @@
-# Bonne Garde — Context & Rules for AI Agents
+# AGENTS.md
 
-> Entry point for all AI agents (Claude, Codex, Cursor...). Read before any action.
+> Canonical instructions for AI coding agents. **Single source of truth.**
+>
+> | Tool        | How this file is loaded                              |
+> | ----------- | ---------------------------------------------------- |
+> | Codex       | Native (`AGENTS.md`)                                 |
+> | OpenCode    | Native (`AGENTS.md`; preferred over `CLAUDE.md`)     |
+> | Cursor      | Native (`AGENTS.md`) + thin `.cursor/rules/` pointer |
+> | Claude Code | Via [`CLAUDE.md`](./CLAUDE.md) import (`@AGENTS.md`) |
+>
+> Do **not** duplicate these rules into tool-specific files. Edit this file only.
+> Deep detail lives in `docs/` — load on demand (see [Deep docs](#deep-docs-load-on-demand)).
 
 ---
 
-## Stack
+## Project overview
 
-| Layer | Choice |
-|-------|--------|
-| Runtime / Package manager | Bun + workspaces |
-| Language | TypeScript strict everywhere |
-| API | Elysia (Cloudflare Workers, AOT disabled) |
-| Auth | Better-auth (email/password, sessions, email verification) |
-| ORM | Drizzle — SQLite dialect |
-| DB | Cloudflare D1 (SQLite, portable to libsql/Turso) |
-| Storage | Cloudflare R2 |
-| Email | Resend + React-Email |
-| Shared API types | Eden Treaty (inferred from Elysia, no manual schema) |
-| BO | React Router v7 SPA — shadcn/ui + Tailwind + Zustand — CF Pages |
-| Player | React Router v7 SSR/PWA — shadcn/ui + Tailwind + Zustand — CF Pages |
-| Static | React Router v7 SPA — shadcn/ui + Tailwind + Zustand — CF Pages |
-| Shared UI | `packages/ui` — global CSS + shadcn components |
-| Emails | React-Email templates (`packages/emails`) |
+Bonne Garde is a Bun monorepo boilerplate for Cloudflare: Elysia API (Workers) + Drizzle/D1 + Better-auth + React Router v7 (SPA / SSR / static) + shadcn/ui + R2 + Resend.
 
-### Architecture Decisions
+| Layer                     | Choice                                                      |
+| ------------------------- | ----------------------------------------------------------- |
+| Runtime / Package manager | Bun + workspaces                                            |
+| Language                  | TypeScript strict everywhere                                |
+| API                       | Elysia (Cloudflare Workers, AOT disabled)                   |
+| Auth                      | Better-auth (email/password, sessions, email verification)  |
+| ORM / DB                  | Drizzle — SQLite dialect / Cloudflare D1                    |
+| Storage / Email           | Cloudflare R2 / Resend + React-Email                        |
+| Shared API types          | Eden Treaty (inferred from Elysia — no manual schema)       |
+| Fronts                    | React Router v7 + shadcn/ui + Tailwind + Zustand — CF Pages |
+| Shared UI / Emails        | `packages/ui` / `packages/emails`                           |
 
-| Decision | Reason |
-|----------|--------|
-| D1 (SQLite) | Free, CF integrated, portable SQLite |
-| Eden Treaty | No shared package to maintain |
-| Better-auth | Email/password + sessions + email verification out of the box |
-| R2 | CF integrated, no third-party cost for egress |
-| Resend + React-Email | Free tier, templates as React components |
-| BO SPA | No SSR needed for backoffice |
-| Player SSR | SEO + initial performance for mobile players |
+### Key decisions
 
-### Implementation-discovered Decisions
-
-| Decision | Context | Fix |
-|----------|---------|-----|
-| `new Elysia({ aot: false })` | CF Workers V8 forbids `new Function()` | Disable AOT in `createApp()` |
-| Separate `tsconfig.test.json` | `@cloudflare/workers-types` and `bun-types` incompatible | `tsconfig.json` for src, `tsconfig.test.json` for tests |
-
-### Platform Agnosticism
-
-Never use CF proprietary APIs outside declared bindings (`DB`, `BUCKET`).
-D1 → libsql/Turso, R2 → S3-compatible, Workers → Bun/Node, Pages → any host.
+| Decision                      | Why                                                            |
+| ----------------------------- | -------------------------------------------------------------- |
+| D1 (SQLite)                   | Free, CF-integrated, portable SQLite                           |
+| Eden Treaty                   | No shared package to maintain                                  |
+| `new Elysia({ aot: false })`  | CF Workers V8 forbids `new Function()`                         |
+| Separate `tsconfig.test.json` | `@cloudflare/workers-types` vs `bun-types` clash               |
+| Platform agnosticism          | Never use CF proprietary APIs outside bindings `DB` / `BUCKET` |
 
 ---
 
@@ -56,26 +49,27 @@ bonne-garde/
 ├── apps/api          # Elysia — CF Worker
 ├── apps/spa          # React Router SPA — backoffice
 ├── apps/ssr          # React Router SSR — players (PWA)
-├── apps/static       # React Router SPA — static/landing pages
+├── apps/static       # React Router SPA — landing
 ├── packages/emails   # React-Email templates
 ├── packages/ui       # Global CSS + shared components
-├── docs/             # All documentation
-├── scripts/          # gen-commands.ts and others
+├── docs/             # Human + deep agent docs
+└── scripts/          # gen-commands, init, etc.
 ```
 
 ---
 
-## Commands — always `bun` / `bunx`, never `npm` / `yarn` / `npx`
+## Setup & commands
 
-Exhaustive list → [`COMMANDS.md`](./docs/COMMANDS.md) (regenerate: `bun run gen:commands`).
+Always `bun` / `bunx` — never `npm` / `yarn` / `pnpm` / `npx` / `node`.
+If a script exists in a `package.json`, use it — never reinvent.
+Full list → [`docs/COMMANDS.md`](./docs/COMMANDS.md) (`bun run gen:commands`).
 
 ```bash
-bun install                               # install the monorepo
+bun install
+bun run init                              # env, migrations, seed
 bun run dev                               # all apps in parallel
 bun run typecheck && bun run test         # full verification
-bun run lint && bun run fmt:check          # oxlint + oxfmt
-bun run gen:commands                      # regenerate docs/COMMANDS.md
-bun run gen:architecture                  # regenerate docs/ARCHITECTURE.md
+bun run check                             # vp check (fmt + lint via Vite+)
 
 bun run --filter @bonne-garde/api dev
 bun run --filter @bonne-garde/spa dev
@@ -83,70 +77,71 @@ bun run --filter @bonne-garde/ssr dev
 bun run --filter @bonne-garde/static dev
 
 # From apps/api/
-bun run db:generate        # drizzle-kit generate
-bun run db:migrate:local   # apply D1 migrations locally
+bun run db:generate
+bun run db:migrate:local
 bun run db:studio
 bun run db:seed
-bun run auth:secret        # generates BETTER_AUTH_SECRET
+bun run auth:secret
 ```
 
-**Rule**: if a script exists in a `package.json`, use it — never reinvent.
-
 ---
 
-## Do's
+## Non-negotiables
 
-- **Read before writing**: this file → the issue/spec → `git show main:<path>` (legacy) → existing code
-- **Strict TDD**: red → green → refactor. Details → [`TESTING.md`](./docs/TESTING.md)
-- **Eden Treaty** for all front API calls — never raw fetch
+### Do
+
+- **Read before writing**: this file → task/spec → existing code (`git show main:<path>` when comparing legacy)
+- **Strict TDD**: red → green → refactor ([`docs/TESTING.md`](./docs/TESTING.md))
+- **Eden Treaty** for all front → API calls — never raw `fetch`
 - **shadcn via CLI**: `bunx shadcn@latest add <component>` — never copy by hand
-- **Strict scope**: one change = one scope, do not touch elsewhere "in passing"
+- **One task = one scope** — no drive-by refactors
 
-## Don'ts
+### Don't
 
-- ❌ `any` — `unknown` + type guard
-- ❌ `as` to bypass an Eden type — fix the API contract at the source
-- ❌ `npm` / `yarn` / `pnpm` / `npx` — `bun` / `bunx` only
-- ❌ Mock Drizzle, mock `fetch`, snapshot tests
-- ❌ CF proprietary API outside `DB` / `BUCKET`
-- ❌ Skip phases defined in the spec/issue
-- ❌ `--no-verify`, `reset --hard`, `push --force` without explicit request
+- `any` — use `unknown` + type guard
+- `as` to bypass an Eden type — fix the API contract at the source
+- `npm` / `yarn` / `pnpm` / `npx` / `node` — `bun` / `bunx` only
+- Mock Drizzle, mock `fetch`, snapshot tests
+- CF proprietary APIs outside `DB` / `BUCKET`
+- Skip phases defined in the spec/issue
+- `--no-verify`, `reset --hard`, `push --force` without explicit request
 
----
+### Clean code filter (before and after each write)
 
-## Clean Code Filter — before and after each write
+- **Algo**: simplest approach that works?
+- **Archi**: right place? separation of concerns?
+- **Naming**: precise and unambiguous?
+- **Volume**: every line earns its place?
+- **Clarity**: simple and explicit > clever and implicit
 
-- **Algo**: good approach? Simplest possible?
-- **Archi**: right place? Separation of concerns respected?
-- **Naming**: precise, unambiguous?
-- **Volume**: every line has a reason to exist? No dead code, no premature abstraction.
-- **Clarity**: simple and explicit > clever and implicit.
-
-If a choice is questionable → raise it **before** implementing.
+If a choice is questionable → ask **before** implementing.
 
 ---
 
-## Checklist Before Rendering a Task
+## Verification checklist
+
+Before considering a task done:
 
 - [ ] `bun run typecheck` passes
 - [ ] `bun run test` passes
-- [ ] `bun run lint && bun run fmt:check` pass
+- [ ] `bun run check` passes
 - [ ] No `any`, no `as` Eden
 - [ ] Eden types up to date if API changed
 - [ ] New env vars → corresponding `.example` file(s)
 - [ ] No files outside scope modified
-- [ ] Issue/PR annotated with outcome
 
 ---
 
-## Where to Find What
+## Deep docs (load on demand)
 
-| Need | File |
-|------|------|
-| Detailed rules (clean code, TDD, types) | [`RULES.md`](./docs/RULES.md) |
-| Test patterns | [`TESTING.md`](./docs/TESTING.md) |
-| Environment variables | [`ENVIRONMENT.md`](./docs/ENVIRONMENT.md) |
-| All scripts | [`COMMANDS.md`](./docs/COMMANDS.md) |
-| System architecture | [`ARCHITECTURE.md`](./docs/ARCHITECTURE.md) |
-| Design system | [`DESIGN.md`](./docs/DESIGN.md) |
-| Agent instructions | this file |
+Do **not** preload everything. Open only what the current task needs:
+
+| Need                                              | File                                             |
+| ------------------------------------------------- | ------------------------------------------------ |
+| Detailed clean-code / types / product conventions | [`docs/RULES.md`](./docs/RULES.md)               |
+| Test patterns per app                             | [`docs/TESTING.md`](./docs/TESTING.md)           |
+| All scripts                                       | [`docs/COMMANDS.md`](./docs/COMMANDS.md)         |
+| System architecture                               | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) |
+| Design system                                     | [`docs/DESIGN.md`](./docs/DESIGN.md)             |
+| Environment variables                             | [`docs/ENVIRONMENT.md`](./docs/ENVIRONMENT.md)   |
+| How agent files are wired across tools            | [`docs/AGENTING.md`](./docs/AGENTING.md)         |

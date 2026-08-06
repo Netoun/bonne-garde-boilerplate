@@ -1,9 +1,7 @@
 import { treaty } from "@elysiajs/eden";
 import type { App } from "@bonne-garde/api/app";
-import type { AppLoadContext } from "react-router";
 
-// --- Cloudflare context extension ---
-interface CloudflareContext extends AppLoadContext {
+interface CloudflareContext {
   cloudflare?: {
     env: { API_URL?: string };
   };

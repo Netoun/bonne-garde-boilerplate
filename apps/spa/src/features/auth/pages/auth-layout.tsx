@@ -1,5 +1,5 @@
 import { Outlet, useMatches } from "react-router";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Gem } from "lucide-react";
 import { ThemeToggle } from "../../../components/theme-toggle";
 import { isAuthLayoutHandle, type AuthLayoutHandle } from "../types";

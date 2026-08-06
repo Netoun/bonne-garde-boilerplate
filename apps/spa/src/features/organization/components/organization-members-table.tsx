@@ -1,11 +1,10 @@
 import {
-  useReactTable,
+  useLegacyTable,
   getCoreRowModel,
   getSortedRowModel,
-  flexRender,
-  createColumnHelper,
-  type SortingState,
-} from "@tanstack/react-table";
+  legacyCreateColumnHelper,
+} from "@tanstack/react-table/legacy";
+import { flexRender, type SortingState } from "@tanstack/react-table";
 import { useState } from "react";
 import { User, Trash2, Crown, Shield, UserCircle } from "lucide-react";
 import {
@@ -46,7 +45,7 @@ const roleVariants: Record<string, "default" | "secondary" | "outline"> = {
   member: "outline",
 };
 
-const columnHelper = createColumnHelper<OrganizationMember>();
+const columnHelper = legacyCreateColumnHelper<OrganizationMember>();
 
 function getInitials(name: string) {
   return name
@@ -128,9 +127,9 @@ export function OrganizationMembersTable({
     }),
   ];
 
-  const table = useReactTable({
+  const table = useLegacyTable({
     data: members,
-    columns,
+    columns: columnHelper.columns(columns),
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),

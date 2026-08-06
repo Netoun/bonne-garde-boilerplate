@@ -87,9 +87,6 @@ function detectApp(name: string): AppInfo | null {
 }
 
 function detectPackage(name: string): PackageInfo {
-  const pkg = readPkg("packages", name);
-  const deps = pkg ? getDeps(pkg) : [];
-
   const roles: Record<string, string> = {
     ui: "shadcn/ui + global CSS",
     emails: "React-Email templates",

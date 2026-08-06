@@ -1,16 +1,16 @@
 # Tests — Patterns & Setup
 
-> General rules (TDD, coverage, prohibitions) → [`RULES.md`](./RULES.md#2-tdd--test-driven-development).
+> Agents: start from [`AGENTS.md`](../AGENTS.md). General TDD rules → [`RULES.md`](./RULES.md#2-tdd--test-driven-development).
 
 ---
 
 ## Stack
 
-| App | Runner | Env | HTTP Mock | Command |
-|-----|--------|-----|-----------|---------|
-| `apps/api` | `bun:test` (native) | `bun:sqlite` in-memory | None (real DB) | `bun test` |
-| `apps/spa` | Vitest + RTL | `jsdom` | MSW | `bun run test` |
-| `apps/ssr` | Vitest + RTL | `jsdom` | MSW | `bun run test` |
+| App        | Runner              | Env                    | HTTP Mock      | Command        |
+| ---------- | ------------------- | ---------------------- | -------------- | -------------- |
+| `apps/api` | `bun:test` (native) | `bun:sqlite` in-memory | None (real DB) | `bun test`     |
+| `apps/spa` | Vitest + RTL        | `jsdom`                | MSW            | `bun run test` |
+| `apps/ssr` | Vitest + RTL        | `jsdom`                | MSW            | `bun run test` |
 
 From root: `bun run test` (parallel, all apps).
 
@@ -67,7 +67,7 @@ describe("Organizations API (E2E)", () => {
     db = createTestDb();
 
     // minimal seed (user + session)
-    await db.insert(user).values({ /* ... */ });
+    await db.insert(user).values({/* ... */});
 
     const app = new Elysia()
       .decorate("db", db)
@@ -110,14 +110,15 @@ Applies to `apps/spa` (SPA) and `apps/ssr` (SSR).
 ### Setup
 
 `tests/setup.ts`:
-```typescript
-import '@testing-library/jest-dom'
-import { beforeAll, afterEach, afterAll } from 'vitest'
-import { server } from './mocks/server'
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => server.resetHandlers())
-afterAll(() => server.close())
+```typescript
+import "@testing-library/jest-dom";
+import { beforeAll, afterEach, afterAll } from "vitest";
+import { server } from "./mocks/server";
+
+beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 ```
 
 ### MSW Handler
@@ -125,13 +126,13 @@ afterAll(() => server.close())
 File: `tests/mocks/handlers.ts`
 
 ```typescript
-import { http, HttpResponse } from 'msw'
+import { http, HttpResponse } from "msw";
 
 export const handlers = [
-  http.get('http://localhost:5172/v1/organizations', () =>
-    HttpResponse.json([{ id: 'org-1', slug: 'acme', name: 'ACME' }]),
+  http.get("http://localhost:5172/v1/organizations", () =>
+    HttpResponse.json([{ id: "org-1", slug: "acme", name: "ACME" }]),
   ),
-]
+];
 ```
 
 **Rule**: one handler per endpoint, override in test via `server.use(...)` to simulate errors.
@@ -162,28 +163,26 @@ describe('LoginForm', () => {
 ### Loader Pattern (SSR only)
 
 ```typescript
-import { describe, it, expect } from 'vitest'
-import { loader } from '~/routes/games.$slug'
+import { describe, it, expect } from "vitest";
+import { loader } from "~/routes/games.$slug";
 
-describe('loader — /games/:slug', () => {
-  it('returns game data on success', async () => {
+describe("loader — /games/:slug", () => {
+  it("returns game data on success", async () => {
     const response = await loader({
-      params: { slug: 'foo' },
-      request: new Request('http://t/games/foo'),
+      params: { slug: "foo" },
+      request: new Request("http://t/games/foo"),
       context: {},
-    } as any)
-    expect(response).toMatchObject({ slug: 'foo' })
-  })
+    } as any);
+    expect(response).toMatchObject({ slug: "foo" });
+  });
 
-  it('throws 404 when not found', async () => {
-    server.use(
-      http.get('*/v1/games/foo', () => new HttpResponse(null, { status: 404 })),
-    )
+  it("throws 404 when not found", async () => {
+    server.use(http.get("*/v1/games/foo", () => new HttpResponse(null, { status: 404 })));
     await expect(
-      loader({ params: { slug: 'foo' }, request: new Request('http://t/'), context: {} } as any),
-    ).rejects.toThrow()
-  })
-})
+      loader({ params: { slug: "foo" }, request: new Request("http://t/"), context: {} } as any),
+    ).rejects.toThrow();
+  });
+});
 ```
 
 Cover: **nominal case + all error cases** (404, 401, 500…).

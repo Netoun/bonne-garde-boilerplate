@@ -1,0 +1,16 @@
+---
+description: Follow repo AGENTS.md — Bun-only monorepo canonical agent rules
+alwaysApply: true
+---
+
+# Cursor → AGENTS.md
+
+This repo's single source of truth for agents is `AGENTS.md` at the repository root.
+
+Before coding:
+
+1. Read `AGENTS.md` (and open deep docs it links only when needed).
+2. Obey Bun-only (`bun` / `bunx`), strict TypeScript, Eden Treaty, and TDD.
+3. Do not restate or fork these rules into other Cursor rule files.
+
+Scoped Cursor rules are allowed only for file-specific patterns that are **not** already covered by `AGENTS.md`.

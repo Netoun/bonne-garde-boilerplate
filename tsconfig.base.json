@@ -10,7 +10,7 @@
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": true,
     "paths": {
-      "@bonne-garde/api/*": ["./apps/api/src/*"],
-    },
-  },
+      "@bonne-garde/api/*": ["./apps/api/src/*"]
+    }
+  }
 }

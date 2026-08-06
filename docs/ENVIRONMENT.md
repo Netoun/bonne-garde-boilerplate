@@ -4,12 +4,12 @@ Source of truth: `apps/*/.env.example` and `apps/api/.dev.vars.example`. This fi
 
 ## Conventions
 
-| Rule | |
-|------|---|
-| Secrets | `.dev.vars` (API) / `.env` (fronts) — **never committed** |
-| Public vars | `wrangler.jsonc` → `vars` (dev) / `env.production.vars` (prod) |
-| Client-exposed | `VITE_` prefix mandatory for SPA |
-| Prod secrets | `wrangler secret put <NAME>` from the app directory |
+| Rule           |                                                                |
+| -------------- | -------------------------------------------------------------- |
+| Secrets        | `.dev.vars` (API) / `.env` (fronts) — **never committed**      |
+| Public vars    | `wrangler.jsonc` → `vars` (dev) / `env.production.vars` (prod) |
+| Client-exposed | `VITE_` prefix mandatory for SPA                               |
+| Prod secrets   | `wrangler secret put <NAME>` from the app directory            |
 
 ## Secret generation
 

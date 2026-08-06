@@ -3,13 +3,13 @@
   "pages_build_output_dir": "dist",
   "compatibility_date": "2024-09-23",
   "vars": {
-    "API_URL": "http://localhost:5172"
+    "API_URL": "http://localhost:5172",
   },
   "env": {
     "production": {
       "vars": {
-        "API_URL": "https://api.my-app.com"
-      }
-    }
-  }
+        "API_URL": "https://api.my-app.com",
+      },
+    },
+  },
 }
