@@ -10,7 +10,9 @@
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": true,
     "paths": {
-      "@bonne-garde/api/*": ["./apps/api/src/*"]
+      "@acme/api/*": ["./apps/api/src/*"],
+      "@acme/config": ["./packages/config/src/index.ts"],
+      "@acme/config/*": ["./packages/config/src/*"]
     }
   }
 }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { authClient } from "@bonne-garde/spa/lib/auth";
+import { authClient } from "@acme/spa/lib/auth";
 
 const QUERY_KEYS = {
   organizations: ["organizations"],

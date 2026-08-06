@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
-import { authClient } from "@bonne-garde/spa/lib/auth";
-import { Alert, AlertDescription } from "@bonne-garde/ui/components/alert";
+import { authClient } from "@acme/spa/lib/auth";
+import { Alert, AlertDescription } from "@acme/ui/components/alert";
 import { Loader2 } from "lucide-react";
 
 export default function AuthVerifyEmail() {

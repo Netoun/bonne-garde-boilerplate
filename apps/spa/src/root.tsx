@@ -9,7 +9,7 @@ import {
   ScrollRestoration,
 } from "react-router";
 import { QueryProvider } from "./providers/query-provider";
-import { authClient } from "@bonne-garde/spa/lib/auth";
+import { authClient } from "@acme/spa/lib/auth";
 import { AppLoader } from "./components/app-loader";
 import { useAuthRedirect } from "./hooks/use-auth-redirect";
 import { useInitTheme } from "./hooks/use-init-theme";
@@ -18,10 +18,10 @@ import useLoadApp from "./hooks/use-load-app";
 import "@fontsource-variable/urbanist/wght.css";
 import "@fontsource-variable/faustina/wght.css";
 
-import faviconSvg from "@bonne-garde/assets/favicons/favicon.svg";
-import siteManifest from "@bonne-garde/assets/favicons/site.webmanifest";
+import faviconSvg from "@acme/assets/favicons/favicon.svg";
+import siteManifest from "@acme/assets/favicons/site.webmanifest";
 
-import "@bonne-garde/ui/styles/globals.css";
+import "@acme/ui/styles/globals.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", type: "image/svg+xml", href: faviconSvg },

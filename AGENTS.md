@@ -16,19 +16,19 @@
 
 ## Project overview
 
-Bonne Garde is a Bun monorepo boilerplate for Cloudflare: Elysia API (Workers) + Drizzle/D1 + Better-auth + React Router v7 (SPA / SSR / static) + shadcn/ui + R2 + Resend.
+My App is a Bun monorepo for Cloudflare: Elysia API (Workers) + Drizzle/D1 + Better-auth + React Router v7 (SPA / SSR / static) + shadcn/ui + R2 + Resend.
 
-| Layer                     | Choice                                                      |
-| ------------------------- | ----------------------------------------------------------- |
-| Runtime / Package manager | Bun + workspaces                                            |
-| Language                  | TypeScript strict everywhere                                |
-| API                       | Elysia (Cloudflare Workers, AOT disabled)                   |
-| Auth                      | Better-auth (email/password, sessions, email verification)  |
-| ORM / DB                  | Drizzle — SQLite dialect / Cloudflare D1                    |
-| Storage / Email           | Cloudflare R2 / Resend + React-Email                        |
-| Shared API types          | Eden Treaty (inferred from Elysia — no manual schema)       |
-| Fronts                    | React Router v7 + shadcn/ui + Tailwind + Zustand — CF Pages |
-| Shared UI / Emails        | `packages/ui` / `packages/emails`                           |
+| Layer                       | Choice                                                      |
+| --------------------------- | ----------------------------------------------------------- |
+| Runtime / Package manager   | Bun + workspaces                                            |
+| Language                    | TypeScript strict everywhere                                |
+| API                         | Elysia (Cloudflare Workers, AOT disabled)                   |
+| Auth                        | Better-auth (email/password, sessions, email verification)  |
+| ORM / DB                    | Drizzle — SQLite dialect / Cloudflare D1                    |
+| Storage / Email             | Cloudflare R2 / Resend + React-Email                        |
+| Shared API types            | Eden Treaty (inferred from Elysia — no manual schema)       |
+| Fronts                      | React Router v7 + shadcn/ui + Tailwind + Zustand — CF Pages |
+| Shared UI / Emails / Config | `packages/ui` / `packages/emails` / `packages/config`       |
 
 ### Key decisions
 
@@ -45,15 +45,16 @@ Bonne Garde is a Bun monorepo boilerplate for Cloudflare: Elysia API (Workers) +
 ## Structure
 
 ```
-bonne-garde/
-├── apps/api          # Elysia — CF Worker
-├── apps/spa          # React Router SPA — backoffice
-├── apps/ssr          # React Router SSR — players (PWA)
-├── apps/static       # React Router SPA — landing
-├── packages/emails   # React-Email templates
-├── packages/ui       # Global CSS + shared components
-├── docs/             # Human + deep agent docs
-└── scripts/          # gen-commands, init, etc.
+acme/
+├── apps/api
+├── apps/spa
+├── apps/ssr
+├── apps/static
+├── packages/config
+├── packages/emails
+├── packages/ui
+├── docs/
+└── scripts/
 ```
 
 ---
@@ -66,15 +67,17 @@ Full list → [`docs/COMMANDS.md`](./docs/COMMANDS.md) (`bun run gen:commands`).
 
 ```bash
 bun install
-bun run init                              # env, migrations, seed
+bun run init                              # selection, branding, env, migrations, seed
+bun run brand                             # re-apply product identity / npm scope
+bun run gen:branding                      # regenerate branding.generated.ts from branding.json
 bun run dev                               # all apps in parallel
 bun run typecheck && bun run test         # full verification
 bun run check                             # vp check (fmt + lint via Vite+)
 
-bun run --filter @bonne-garde/api dev
-bun run --filter @bonne-garde/spa dev
-bun run --filter @bonne-garde/ssr dev
-bun run --filter @bonne-garde/static dev
+bun run --filter @acme/api dev
+bun run --filter @acme/spa dev
+bun run --filter @acme/ssr dev
+bun run --filter @acme/static dev
 
 # From apps/api/
 bun run db:generate

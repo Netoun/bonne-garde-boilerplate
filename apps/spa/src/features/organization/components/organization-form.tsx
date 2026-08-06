@@ -1,9 +1,10 @@
 import { Link } from "react-router";
 import { useForm } from "@tanstack/react-form";
 import { useDebouncedCallback } from "@tanstack/react-pacer/debouncer";
-import { Button } from "@bonne-garde/ui/components/button";
-import { Input } from "@bonne-garde/ui/components/input";
-import { Label } from "@bonne-garde/ui/components/label";
+import { branding } from "@acme/config";
+import { Button } from "@acme/ui/components/button";
+import { Input } from "@acme/ui/components/input";
+import { Label } from "@acme/ui/components/label";
 
 interface OrganizationFormProps {
   initialData?: {
@@ -30,6 +31,8 @@ function generateSlug(name: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+const publicHost = new URL(branding.publicOrigin).host;
 
 export function OrganizationForm({
   initialData,
@@ -126,7 +129,7 @@ export function OrganizationForm({
               placeholder="mon-organisation"
             />
             <p className="text-xs text-muted-foreground">
-              Used in URL: bonne-garde.io/o/{field.state.value || "your-slug"}
+              Utilisé dans l&apos;URL : {publicHost}/o/{field.state.value || "your-slug"}
             </p>
             {field.state.meta.errors.length > 0 && (
               <p className="text-sm text-destructive">{field.state.meta.errors[0]}</p>

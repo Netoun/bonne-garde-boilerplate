@@ -7,8 +7,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@bonne-garde/ui/components/sidebar";
-import { useOrganizations } from "@bonne-garde/spa/features/organization/hooks/use-organization";
+} from "@acme/ui/components/sidebar";
+import { useOrganizations } from "@acme/spa/features/organization/hooks/use-organization";
 
 interface NavItem {
   title: string;

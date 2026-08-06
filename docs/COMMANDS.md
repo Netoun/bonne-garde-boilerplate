@@ -9,32 +9,34 @@
 
 ### Root
 
-`bonne-garde-boilerplate` · From root
+`acme` · From root
 
-| Script             | Command                                       |
-| ------------------ | --------------------------------------------- |
-| `build`            | `bun run --parallel --filter '*' build`       |
-| `check`            | `vp check`                                    |
-| `dev`              | `bun run --parallel --filter '*' dev`         |
-| `fmt`              | `vp fmt --write`                              |
-| `fmt:check`        | `vp fmt --check`                              |
-| `gen:architecture` | `bun scripts/gen-architecture.ts`             |
-| `gen:commands`     | `bun scripts/gen-commands.ts`                 |
-| `init`             | `bun scripts/init.ts`                         |
-| `knip`             | `knip`                                        |
-| `knip:fix`         | `knip --fix --allow-remove-files`             |
-| `lint`             | `vp lint`                                     |
-| `lint:fix`         | `vp lint --fix`                               |
-| `prepare`          | `husky`                                       |
-| `test`             | `bun run --parallel --filter '*' test`        |
-| `typecheck`        | `bun run --parallel --filter '*' typecheck`   |
-| `ui`               | `bun run --filter '@bonne-garde/ui' registry` |
+| Script             | Command                                     |
+| ------------------ | ------------------------------------------- |
+| `brand`            | `bun scripts/brand.ts`                      |
+| `build`            | `bun run --parallel --filter '*' build`     |
+| `check`            | `vp check`                                  |
+| `dev`              | `bun run --parallel --filter '*' dev`       |
+| `fmt`              | `vp fmt --write`                            |
+| `fmt:check`        | `vp fmt --check`                            |
+| `gen:architecture` | `bun scripts/gen-architecture.ts`           |
+| `gen:branding`     | `bun scripts/gen-branding.ts`               |
+| `gen:commands`     | `bun scripts/gen-commands.ts`               |
+| `init`             | `bun scripts/init.ts`                       |
+| `knip`             | `knip`                                      |
+| `knip:fix`         | `knip --fix --allow-remove-files`           |
+| `lint`             | `vp lint`                                   |
+| `lint:fix`         | `vp lint --fix`                             |
+| `prepare`          | `husky`                                     |
+| `test`             | `bun run --parallel --filter '*' test`      |
+| `typecheck`        | `bun run --parallel --filter '*' typecheck` |
+| `ui`               | `bun run --filter '@acme/ui' registry`      |
 
 ---
 
 ### apps/api
 
-`@bonne-garde/api` · From root: `bun run --filter @bonne-garde/api <script>` · or from `apps/api/`: `bun run <script>`
+`@acme/api` · From root: `bun run --filter @acme/api <script>` · or from `apps/api/`: `bun run <script>`
 
 | Script              | Command                                                                                                                                                                                                                      |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -59,7 +61,7 @@
 
 ### apps/spa
 
-`@bonne-garde/spa` · From root: `bun run --filter @bonne-garde/spa <script>` · or from `apps/spa/`: `bun run <script>`
+`@acme/spa` · From root: `bun run --filter @acme/spa <script>` · or from `apps/spa/`: `bun run <script>`
 
 | Script         | Command                      |
 | -------------- | ---------------------------- |
@@ -73,7 +75,7 @@
 
 ### apps/ssr
 
-`@bonne-garde/ssr` · From root: `bun run --filter @bonne-garde/ssr <script>` · or from `apps/ssr/`: `bun run <script>`
+`@acme/ssr` · From root: `bun run --filter @acme/ssr <script>` · or from `apps/ssr/`: `bun run <script>`
 
 | Script         | Command                |
 | -------------- | ---------------------- |
@@ -87,7 +89,7 @@
 
 ### apps/static
 
-`@bonne-garde/static` · From root: `bun run --filter @bonne-garde/static <script>` · or from `apps/static/`: `bun run <script>`
+`@acme/static` · From root: `bun run --filter @acme/static <script>` · or from `apps/static/`: `bun run <script>`
 
 | Script      | Command                              |
 | ----------- | ------------------------------------ |
@@ -98,9 +100,20 @@
 
 ---
 
+### packages/config
+
+`@acme/config` · From root: `bun run --filter @acme/config <script>` · or from `packages/config/`: `bun run <script>`
+
+| Script      | Command        |
+| ----------- | -------------- |
+| `test`      | `bun test`     |
+| `typecheck` | `tsc --noEmit` |
+
+---
+
 ### packages/emails
 
-`@bonne-garde/emails` · From root: `bun run --filter @bonne-garde/emails <script>` · or from `packages/emails/`: `bun run <script>`
+`@acme/emails` · From root: `bun run --filter @acme/emails <script>` · or from `packages/emails/`: `bun run <script>`
 
 | Script      | Command        |
 | ----------- | -------------- |
@@ -111,7 +124,7 @@
 
 ### packages/ui
 
-`@bonne-garde/ui` · From root: `bun run --filter @bonne-garde/ui <script>` · or from `packages/ui/`: `bun run <script>`
+`@acme/ui` · From root: `bun run --filter @acme/ui <script>` · or from `packages/ui/`: `bun run <script>`
 
 | Script      | Command              |
 | ----------- | -------------------- |

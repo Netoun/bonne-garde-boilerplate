@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { UserPlus } from "lucide-react";
-import { Button } from "@bonne-garde/ui/components/button";
+import { Button } from "@acme/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -9,16 +9,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@bonne-garde/ui/components/dialog";
-import { Input } from "@bonne-garde/ui/components/input";
-import { Label } from "@bonne-garde/ui/components/label";
+} from "@acme/ui/components/dialog";
+import { Input } from "@acme/ui/components/input";
+import { Label } from "@acme/ui/components/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@bonne-garde/ui/components/select";
+} from "@acme/ui/components/select";
 
 interface OrganizationInviteMemberDialogProps {
   onInvite: (email: string, role: "member" | "admin") => Promise<void>;

@@ -1,9 +1,12 @@
 import { describe, it, expect } from "bun:test";
 import { Elysia } from "elysia";
 import { openapi } from "@elysiajs/openapi";
+import { branding } from "@acme/config";
 
 const app = new Elysia().use(
-  openapi({ documentation: { info: { title: "Bonne Garde API", version: "0.0.1" } } }),
+  openapi({
+    documentation: { info: { title: `${branding.displayName} API`, version: "0.0.1" } },
+  }),
 );
 
 describe("GET /openapi", () => {

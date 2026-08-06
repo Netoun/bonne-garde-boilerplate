@@ -4,7 +4,7 @@ import {
   inferOrgAdditionalFields,
   organizationClient,
 } from "better-auth/client/plugins";
-import type { Auth } from "@bonne-garde/api/modules/auth/auth.config";
+import type { Auth } from "@acme/api/modules/auth/auth.config";
 
 export const authClient = createAuthClient({
   baseURL: import.meta.env.VITE_API_URL,

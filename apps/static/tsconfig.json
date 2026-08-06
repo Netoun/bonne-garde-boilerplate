@@ -12,12 +12,14 @@
     "noEmit": true,
     "types": ["@cloudflare/workers-types", "@types/node"],
     "paths": {
-      "@bonne-garde/static/*": ["./src/*"],
-      "@bonne-garde/ui/*": ["../../packages/ui/src/*"],
-      "@bonne-garde/emails": ["../../packages/emails/src/index.ts"],
-      "@bonne-garde/emails/*": ["../../packages/emails/src/*"],
-      "@bonne-garde/api/*": ["../../apps/api/src/*"],
-      "@bonne-garde/assets/*": ["../../assets/*"]
+      "@acme/static/*": ["./src/*"],
+      "@acme/ui/*": ["../../packages/ui/src/*"],
+      "@acme/emails": ["../../packages/emails/src/index.ts"],
+      "@acme/emails/*": ["../../packages/emails/src/*"],
+      "@acme/api/*": ["../../apps/api/src/*"],
+      "@acme/config": ["../../packages/config/src/index.ts"],
+      "@acme/config/*": ["../../packages/config/src/*"],
+      "@acme/assets/*": ["../../assets/*"]
     },
     "rootDirs": [".", "./.react-router/types"]
   },

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
-import { authClient } from "@bonne-garde/spa/lib/auth";
+import { authClient } from "@acme/spa/lib/auth";
 
 function isAuthRoute(pathname: string): boolean {
   const authRoutes = [

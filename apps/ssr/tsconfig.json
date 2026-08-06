@@ -14,13 +14,15 @@
     "rootDirs": [".", "./.react-router/types"],
     "paths": {
       "+types/*": ["./.react-router/types/src/*"],
-      "@bonne-garde/ssr/*": ["./src/*"],
-      "@bonne-garde/assets/*": ["../../assets/*"],
-      "@bonne-garde/ui/*": ["../../packages/ui/src/*"],
-      "@bonne-garde/emails": ["../../packages/emails/src/index.ts"],
-      "@bonne-garde/emails/*": ["../../packages/emails/src/*"],
-      "@bonne-garde/api/*": ["../../apps/api/src/*"],
-      "@bonne-garde/api": ["../../apps/api/src/index.ts"]
+      "@acme/ssr/*": ["./src/*"],
+      "@acme/config": ["../../packages/config/src/index.ts"],
+      "@acme/config/*": ["../../packages/config/src/*"],
+      "@acme/assets/*": ["../../assets/*"],
+      "@acme/ui/*": ["../../packages/ui/src/*"],
+      "@acme/emails": ["../../packages/emails/src/index.ts"],
+      "@acme/emails/*": ["../../packages/emails/src/*"],
+      "@acme/api/*": ["../../apps/api/src/*"],
+      "@acme/api": ["../../apps/api/src/index.ts"]
     }
   },
   "include": [".react-router/types/**/*", "src/**/*"],

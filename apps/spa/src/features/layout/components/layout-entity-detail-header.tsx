@@ -2,14 +2,14 @@ import { Link } from "react-router";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeft, EllipsisVertical } from "lucide-react";
 import type React from "react";
-import { Badge } from "@bonne-garde/ui/components/badge";
-import { Button } from "@bonne-garde/ui/components/button";
+import { Badge } from "@acme/ui/components/badge";
+import { Button } from "@acme/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@bonne-garde/ui/components/dropdown-menu";
+} from "@acme/ui/components/dropdown-menu";
 
 export interface EntityStat {
   icon: LucideIcon;

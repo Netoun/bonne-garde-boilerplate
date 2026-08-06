@@ -1,12 +1,13 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { branding } from "@acme/config";
 
 import "@fontsource-variable/urbanist/wght.css";
 import "@fontsource-variable/faustina/wght.css";
 
-import "@bonne-garde/ui/styles/globals.css";
+import "@acme/ui/styles/globals.css";
 
-import faviconSvg from "@bonne-garde/assets/favicons/favicon.svg";
-import siteManifest from "@bonne-garde/assets/favicons/site.webmanifest";
+import faviconSvg from "@acme/assets/favicons/favicon.svg";
+import siteManifest from "@acme/assets/favicons/site.webmanifest";
 
 export const links = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -32,7 +33,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="theme-color" content="#000000" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Bonne Garde" />
+        <meta name="apple-mobile-web-app-title" content={branding.shortName} />
         <meta name="mobile-web-app-capable" content="yes" />
 
         <Meta />

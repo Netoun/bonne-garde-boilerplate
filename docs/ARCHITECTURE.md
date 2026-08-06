@@ -2,11 +2,11 @@
 
 <!-- GEN:START -->
 
-> Auto-generated from `package.json` files. Regenerate: `bun run gen:architecture`. Last: 2026-05-13.
+> Auto-generated from `package.json` files. Regenerate: `bun run gen:architecture`. Last: 2026-08-06.
 
 ## Overview
 
-Bonne Garde is a Bun monorepo with 4 apps and 2 packages, deployed on Cloudflare.
+My App is a Bun monorepo with 4 apps and 3 packages, deployed on Cloudflare.
 
 ### Apps
 
@@ -21,6 +21,7 @@ Bonne Garde is a Bun monorepo with 4 apps and 2 packages, deployed on Cloudflare
 
 | Package           | Role                   |
 | ----------------- | ---------------------- |
+| `packages/config` | —                      |
 | `packages/emails` | React-Email templates  |
 | `packages/ui`     | shadcn/ui + global CSS |
 
@@ -32,7 +33,7 @@ All front apps communicate with the API via **Eden Treaty**, a type-safe HTTP cl
 
 ```typescript
 // lib/api.ts
-export const api = treaty<App>("https://api.bonne-garde.com");
+export const api = treaty<App>("https://api.example.com");
 const { data } = await api.scenarios({ slug }).get();
 ```
 

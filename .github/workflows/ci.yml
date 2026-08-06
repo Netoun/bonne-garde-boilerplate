@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scope: [api, spa, static, ssr, emails, ui]
+        scope: [api, spa, static, ssr, emails, ui, config]
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -74,7 +74,7 @@ jobs:
             apps/*/node_modules
             packages/*/node_modules
           key: ${{ runner.os }}-nm-${{ hashFiles('bun.lock') }}
-      - run: bun run --filter @bonne-garde/${{ matrix.scope }} typecheck
+      - run: bun run --filter @acme/${{ matrix.scope }} typecheck
 
   test:
     needs: install
@@ -108,4 +108,4 @@ jobs:
             apps/*/node_modules
             packages/*/node_modules
           key: ${{ runner.os }}-nm-${{ hashFiles('bun.lock') }}
-      - run: bun run --filter @bonne-garde/${{ matrix.app }} build
+      - run: bun run --filter @acme/${{ matrix.app }} build

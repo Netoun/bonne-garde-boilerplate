@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { Plus, Building2 } from "lucide-react";
-import { Button } from "@bonne-garde/ui/components/button";
+import { Button } from "@acme/ui/components/button";
 import { OrganizationCard } from "../components/organization-card";
 import { useOrganizations } from "../hooks/use-organization";
 import { OrganizationHeader } from "../components/organization-header";

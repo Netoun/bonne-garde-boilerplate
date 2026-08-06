@@ -1,12 +1,12 @@
 import { Moon, Sun, Monitor } from "lucide-react";
-import { Button } from "@bonne-garde/ui/components/button";
+import { Button } from "@acme/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@bonne-garde/ui/components/dropdown-menu";
-import { useThemeStore } from "@bonne-garde/spa/stores/theme-store";
+} from "@acme/ui/components/dropdown-menu";
+import { useThemeStore } from "@acme/spa/stores/theme-store";
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useThemeStore();

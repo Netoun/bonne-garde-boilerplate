@@ -126,7 +126,7 @@ function renderOverview(apps: AppInfo[], packages: PackageInfo[]): string {
   const appWord = appCount === 1 ? "app" : "apps";
   const pkgWord = pkgCount === 1 ? "package" : "packages";
 
-  return `Bonne Garde is a Bun monorepo with ${appCount} ${appWord} and ${pkgCount} ${pkgWord}, deployed on Cloudflare.`;
+  return `My App is a Bun monorepo with ${appCount} ${appWord} and ${pkgCount} ${pkgWord}, deployed on Cloudflare.`;
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────

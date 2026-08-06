@@ -2,8 +2,8 @@ import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
 import { Check } from "lucide-react";
 import { motion } from "motion/react";
 
-import { cn } from "@bonne-garde/ui/lib/utils";
-import { transitions } from "@bonne-garde/ui/lib/animations";
+import { cn } from "@acme/ui/lib/utils";
+import { transitions } from "@acme/ui/lib/animations";
 
 function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
   return (

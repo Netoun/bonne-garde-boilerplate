@@ -1,10 +1,11 @@
 {
-  "name": "@bonne-garde/ui",
+  "name": "@acme/ui",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "exports": {
     "./globals.css": "./src/styles/globals.css",
+    "./themes/default.css": "./src/styles/themes/default.css",
     "./lib/*": "./src/lib/*.ts",
     "./components/*": "./src/components/*.tsx"
   },

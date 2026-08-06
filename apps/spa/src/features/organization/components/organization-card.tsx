@@ -1,8 +1,8 @@
 import { Link } from "react-router";
 import { Building2, Settings, Users } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@bonne-garde/ui/components/card";
-import { Badge } from "@bonne-garde/ui/components/badge";
-import { Button } from "@bonne-garde/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/components/card";
+import { Badge } from "@acme/ui/components/badge";
+import { Button } from "@acme/ui/components/button";
 import type { Organization } from "../hooks/use-organization";
 
 interface OrganizationCardProps {

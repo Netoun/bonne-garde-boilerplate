@@ -2,9 +2,10 @@
 /**
  * Initializes the project for local development:
  *   1. Interactive selection of apps/packages to keep (+ CI/docs cleanup)
- *   2. Copy .env.example / .dev.vars.example → .env / .dev.vars
- *   3. Generate BETTER_AUTH_SECRET if placeholder
- *   4. Local D1 migrations + seed
+ *   2. Product branding (branding.json, scope rewrite, docs) — also: bun run brand
+ *   3. Copy .env.example / .dev.vars.example → .env / .dev.vars
+ *   4. Generate BETTER_AUTH_SECRET if placeholder
+ *   5. Local D1 migrations + seed
  *
  * Idempotent — safe to run multiple times.
  * Usage :
@@ -13,7 +14,7 @@
  *   bun scripts/init.ts --keep=api,spa
  *   bun scripts/init.ts --dry-run
  *   bun scripts/init.ts --force
- *   bun scripts/init.ts --skip-env --skip-db
+ *   bun scripts/init.ts --skip-env --skip-db --skip-brand
  */
 
 import { existsSync, readFileSync, writeFileSync, copyFileSync, rmSync } from "node:fs";
@@ -24,9 +25,10 @@ import { execSync } from "node:child_process";
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const ROOT = resolve(import.meta.dir, "..");
-const STATE_PATH = join(ROOT, ".bonnegarde-init.json");
+const STATE_PATH = join(ROOT, ".acme-init.json");
+const LEGACY_STATE_PATH = join(ROOT, ".bonnegarde-init.json");
 const ALL_APPS = ["api", "spa", "ssr", "static"] as const;
-const ALL_PACKAGES = ["ui", "emails"] as const;
+const ALL_PACKAGES = ["ui", "emails", "config"] as const;
 
 const APP_DESCRIPTIONS: Record<string, string> = {
   api: "Elysia API (D1 + R2 + Better-auth)",
@@ -38,6 +40,7 @@ const APP_DESCRIPTIONS: Record<string, string> = {
 const PACKAGE_DESCRIPTIONS: Record<string, string> = {
   ui: "shadcn/ui + CSS global",
   emails: "templates React-Email",
+  config: "branding partagé (white-label)",
 };
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -50,17 +53,29 @@ interface InitState {
   keptPackages: string[];
   phases: {
     selection: PhaseStatus;
+    branding: PhaseStatus;
     envSetup: PhaseStatus;
     dbSetup: PhaseStatus;
   };
 }
 
 function loadState(): InitState | null {
-  if (!existsSync(STATE_PATH)) return null;
+  const path = existsSync(STATE_PATH)
+    ? STATE_PATH
+    : existsSync(LEGACY_STATE_PATH)
+      ? LEGACY_STATE_PATH
+      : null;
+  if (!path) return null;
   try {
-    const raw = readFileSync(STATE_PATH, "utf8");
+    const raw = readFileSync(path, "utf8");
     const parsed = JSON.parse(raw);
-    if (parsed?.version === 1) return parsed as InitState;
+    if (parsed?.version === 1) {
+      const state = parsed as InitState;
+      if (!state.phases.branding) {
+        state.phases.branding = "pending";
+      }
+      return state;
+    }
   } catch {
     warn("State file corrupted, ignoring.");
   }
@@ -78,6 +93,7 @@ interface Flags {
   force: boolean;
   dryRun: boolean;
   skipApps: boolean;
+  skipBrand: boolean;
   skipEnv: boolean;
   skipDb: boolean;
   keep: string[] | null;
@@ -97,6 +113,7 @@ function parseFlags(): Flags {
     force: has("force"),
     dryRun: has("dry-run"),
     skipApps: has("skip-apps"),
+    skipBrand: has("skip-brand"),
     skipEnv: has("skip-env"),
     skipDb: has("skip-db"),
     keep: keepArg
@@ -576,8 +593,11 @@ function printSummary(keptApps: string[], keptPackages: string[]): void {
 
   console.log("");
   console.log("  Default admin:");
-  console.log("    Email:    admin@bonne-garde.local");
+  console.log("    Email:    admin@example.local");
   console.log("    Password: password123");
+  console.log("");
+  console.log("  Re-apply branding anytime:");
+  console.log("    bun run brand");
   console.log("");
 
   if (keptApps.length > 0) {
@@ -614,7 +634,7 @@ function printSummary(keptApps: string[], keptPackages: string[]): void {
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 function main() {
-  header("Bonne Garde — Initialization");
+  header("My App — Initialization");
 
   const state = flags.force ? null : loadState();
   let keptApps: string[];
@@ -695,6 +715,21 @@ function main() {
     }
   }
 
+  // ── Phase 1b: Branding ──────────────────────────────────────────────────
+
+  if (flags.skipBrand) {
+    warn("Skipping branding (--skip-brand)");
+  } else if (state?.phases.branding === "done" && !flags.force) {
+    done("Branding already done — use bun run brand or --force to redo");
+  } else {
+    step("Product branding");
+    const brandArgs = ["bun", "scripts/brand.ts"];
+    if (flags.yes) brandArgs.push("--yes");
+    if (flags.dryRun) brandArgs.push("--dry-run");
+    if (flags.force) brandArgs.push("--force");
+    safeExec(brandArgs.join(" "), ROOT, "Brand");
+  }
+
   // ── Phase 2: Env files ──────────────────────────────────────────────────
 
   if (flags.skipEnv) {
@@ -728,6 +763,7 @@ function finish(keptApps: string[], keptPackages: string[]) {
       keptPackages,
       phases: {
         selection: flags.skipApps ? (loadState()?.phases.selection ?? "done") : "done",
+        branding: flags.skipBrand ? (loadState()?.phases.branding ?? "pending") : "done",
         envSetup: flags.skipEnv ? (loadState()?.phases.envSetup ?? "pending") : "done",
         dbSetup: flags.skipDb ? (loadState()?.phases.dbSetup ?? "pending") : "done",
       },

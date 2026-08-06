@@ -1,11 +1,11 @@
-import { cn } from "@bonne-garde/ui/lib/utils";
+import { cn } from "@acme/ui/lib/utils";
 import { motion } from "motion/react";
 import type { LucideIcon } from "lucide-react";
 import {
   transitions,
   staggerContainerVariants,
   staggerItemVariants,
-} from "@bonne-garde/ui/lib/animations";
+} from "@acme/ui/lib/animations";
 import { Button } from "./button";
 
 interface EmptyStateProps {

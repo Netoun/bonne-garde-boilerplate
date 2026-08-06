@@ -214,9 +214,9 @@ Packages (`packages/ui`, `packages/emails`) don't have a dedicated test runner. 
 bun run test
 
 # Per app
-bun run --filter @bonne-garde/api test
-bun run --filter @bonne-garde/spa test
-bun run --filter @bonne-garde/ssr test
+bun run --filter @acme/api test
+bun run --filter @acme/spa test
+bun run --filter @acme/ssr test
 
 # Watch mode (from the app)
 cd apps/api && bun run test:watch

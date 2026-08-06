@@ -1,12 +1,12 @@
 import { Elysia } from "elysia";
 import { eq, and, isNull } from "drizzle-orm";
 import { authService } from "./auth.service";
-import { dbService } from "@bonne-garde/api/modules/db/db.service";
+import { dbService } from "@acme/api/modules/db/db.service";
 import {
   member,
   organization,
   session as sessionTable,
-} from "@bonne-garde/api/modules/db/schemas/db.auth-schema";
+} from "@acme/api/modules/db/schemas/db.auth-schema";
 
 export const AuthMacro = new Elysia({ name: "auth.macro" })
   .use(authService)

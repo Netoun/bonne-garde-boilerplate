@@ -1,8 +1,8 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { motion } from "motion/react";
 
-import { cn } from "@bonne-garde/ui/lib/utils";
-import { transitions } from "@bonne-garde/ui/lib/animations";
+import { cn } from "@acme/ui/lib/utils";
+import { transitions } from "@acme/ui/lib/animations";
 
 const badgeVariants = cva(
   "group/badge inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full border border-transparent px-3 py-0.5 text-xs font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 aria-invalid:border-destructive aria-invalid:ring-destructive/20 [&>svg]:pointer-events-none [&>svg]:size-3",

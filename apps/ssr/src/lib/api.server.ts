@@ -1,5 +1,5 @@
 import { treaty } from "@elysiajs/eden";
-import type { App } from "@bonne-garde/api/app";
+import type { App } from "@acme/api/app";
 
 interface CloudflareContext {
   cloudflare?: {
@@ -7,7 +7,7 @@ interface CloudflareContext {
   };
 }
 
-export type { ApiRoute, EdenResponse, EdenBody, EdenQuery } from "@bonne-garde/api/lib/eden";
+export type { ApiRoute, EdenResponse, EdenBody, EdenQuery } from "@acme/api/lib/eden";
 
 function resolveApiUrl(context: CloudflareContext): string {
   const apiUrl = context.cloudflare?.env.API_URL;

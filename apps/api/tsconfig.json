@@ -15,9 +15,11 @@
     "jsxImportSource": "react",
     "exactOptionalPropertyTypes": false,
     "paths": {
-      "@bonne-garde/api/*": ["./src/*"],
-      "@bonne-garde/emails": ["../../packages/emails/src/index.ts"],
-      "@bonne-garde/emails/*": ["../../packages/emails/src/*"]
+      "@acme/config": ["../../packages/config/src/index.ts"],
+      "@acme/config/*": ["../../packages/config/src/*"],
+      "@acme/api/*": ["./src/*"],
+      "@acme/emails": ["../../packages/emails/src/index.ts"],
+      "@acme/emails/*": ["../../packages/emails/src/*"]
     }
   },
   "include": ["src", "tests"],

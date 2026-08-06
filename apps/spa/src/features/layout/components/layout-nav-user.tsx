@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { authClient } from "@bonne-garde/spa/lib/auth";
+import { authClient } from "@acme/spa/lib/auth";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,14 +8,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@bonne-garde/ui/components/dropdown-menu";
+} from "@acme/ui/components/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@bonne-garde/ui/components/sidebar";
-import { Avatar, AvatarFallback } from "@bonne-garde/ui/components/avatar";
+} from "@acme/ui/components/sidebar";
+import { Avatar, AvatarFallback } from "@acme/ui/components/avatar";
 import { LogOut, User, Settings } from "lucide-react";
 
 function getInitials(user: { email?: string; name?: string }): string {

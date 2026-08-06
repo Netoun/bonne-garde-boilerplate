@@ -1,5 +1,5 @@
 import { Elysia } from "elysia";
-import { config } from "@bonne-garde/api/lib/app.config";
+import { config } from "@acme/api/lib/app.config";
 import { createDB } from "./db.client";
 import { dbService } from "./db.service";
 

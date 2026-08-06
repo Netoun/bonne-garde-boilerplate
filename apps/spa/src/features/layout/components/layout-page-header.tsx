@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeft } from "lucide-react";
-import { Button } from "@bonne-garde/ui/components/button";
+import { Button } from "@acme/ui/components/button";
 import { Link } from "react-router";
 
 export interface PageAction {

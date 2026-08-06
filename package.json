@@ -1,5 +1,5 @@
 {
-  "name": "bonne-garde-boilerplate",
+  "name": "acme",
   "version": "0.1.0",
   "private": true,
   "workspaces": [
@@ -19,10 +19,12 @@
     "knip": "knip",
     "knip:fix": "knip --fix --allow-remove-files",
     "test": "bun run --parallel --filter '*' test",
-    "ui": "bun run --filter '@bonne-garde/ui' registry",
+    "ui": "bun run --filter '@acme/ui' registry",
     "prepare": "husky",
     "gen:commands": "bun scripts/gen-commands.ts",
     "gen:architecture": "bun scripts/gen-architecture.ts",
+    "gen:branding": "bun scripts/gen-branding.ts",
+    "brand": "bun scripts/brand.ts",
     "init": "bun scripts/init.ts"
   },
   "devDependencies": {

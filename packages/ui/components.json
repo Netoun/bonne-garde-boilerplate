@@ -10,10 +10,10 @@
     "prefix": ""
   },
   "aliases": {
-    "components": "@bonne-garde/ui/components",
-    "utils": "@bonne-garde/ui/lib/utils",
-    "ui": "@bonne-garde/ui/components",
-    "lib": "@bonne-garde/ui/lib"
+    "components": "@acme/ui/components",
+    "utils": "@acme/ui/lib/utils",
+    "ui": "@acme/ui/components",
+    "lib": "@acme/ui/lib"
   },
   "iconLibrary": "lucide"
 }

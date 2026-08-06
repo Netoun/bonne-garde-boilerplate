@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
+import { branding } from "@acme/config";
 
 export function meta() {
   return [
-    { title: "Bonne Garde - Backoffice" },
-    { name: "description", content: "Bonne Garde Backoffice" },
+    { title: `${branding.displayName} — Backoffice` },
+    { name: "description", content: `Backoffice ${branding.displayName}` },
   ];
 }
 

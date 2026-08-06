@@ -10,7 +10,7 @@ function hashPassword(password: string): Promise<string> {
   });
 }
 
-const ADMIN_EMAIL = "admin@bonne-garde.local";
+const ADMIN_EMAIL = "admin@example.local";
 const ADMIN_PASSWORD = "password123";
 
 function esc(value: string | null): string {

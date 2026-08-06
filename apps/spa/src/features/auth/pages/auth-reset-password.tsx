@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams, Link, useLocation } from "react-router";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { authClient } from "@bonne-garde/spa/lib/auth";
-import { Button } from "@bonne-garde/ui/components/button";
-import { Input } from "@bonne-garde/ui/components/input";
-import { Label } from "@bonne-garde/ui/components/label";
-import { Alert, AlertDescription } from "@bonne-garde/ui/components/alert";
+import { authClient } from "@acme/spa/lib/auth";
+import { Button } from "@acme/ui/components/button";
+import { Input } from "@acme/ui/components/input";
+import { Label } from "@acme/ui/components/label";
+import { Alert, AlertDescription } from "@acme/ui/components/alert";
 import { resetPasswordSchema, type ResetPasswordSchema } from "../validation";
 
 export default function AuthResetPassword() {

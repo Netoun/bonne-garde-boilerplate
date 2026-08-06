@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useThemeStore } from "@bonne-garde/spa/stores/theme-store";
+import { useThemeStore } from "@acme/spa/stores/theme-store";
 
 export function useInitTheme() {
   useEffect(() => {

@@ -1,9 +1,10 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { branding } from "@acme/config";
 
 import urbanistFont from "@fontsource-variable/urbanist/files/urbanist-latin-wght-normal.woff2?url";
 import fastinaFont from "@fontsource-variable/faustina/files/faustina-latin-wght-normal.woff2?url";
-import faviconSvg from "@bonne-garde/assets/favicons/favicon.svg";
-import siteManifest from "@bonne-garde/assets/favicons/site.webmanifest";
+import faviconSvg from "@acme/assets/favicons/favicon.svg";
+import siteManifest from "@acme/assets/favicons/site.webmanifest";
 
 import "@fontsource-variable/urbanist/wght.css";
 import "@fontsource-variable/faustina/wght.css";
@@ -19,7 +20,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <link rel="preload" as="font" type="font/woff2" href={urbanistFont} crossOrigin="" />
         <link rel="preload" as="font" type="font/woff2" href={fastinaFont} crossOrigin="" />
         <meta name="robots" content="index, follow" />
-        <meta name="author" content="Bonne Garde" />
+        <meta name="author" content={branding.legalName} />
         <link rel="icon" type="image/svg+xml" href={faviconSvg} />
         <link rel="manifest" href={siteManifest} />
         <link rel="stylesheet" href={appCss} />

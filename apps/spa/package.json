@@ -1,5 +1,5 @@
 {
-  "name": "@bonne-garde/spa",
+  "name": "@acme/spa",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -11,6 +11,7 @@
     "deploy": "wrangler pages deploy dist"
   },
   "dependencies": {
+    "@acme/config": "workspace:*",
     "@cloudflare/workers-types": "5.20260804.1",
     "@elysiajs/eden": "1.4.9",
     "@fontsource-variable/faustina": "5.3.0",

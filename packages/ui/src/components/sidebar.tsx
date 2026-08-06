@@ -3,20 +3,20 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
 
-import { useIsMobile } from "@bonne-garde/ui/hooks/use-mobile";
-import { cn } from "@bonne-garde/ui/lib/utils";
-import { Button } from "@bonne-garde/ui/components/button";
-import { Input } from "@bonne-garde/ui/components/input";
-import { Separator } from "@bonne-garde/ui/components/separator";
+import { useIsMobile } from "@acme/ui/hooks/use-mobile";
+import { cn } from "@acme/ui/lib/utils";
+import { Button } from "@acme/ui/components/button";
+import { Input } from "@acme/ui/components/input";
+import { Separator } from "@acme/ui/components/separator";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@bonne-garde/ui/components/sheet";
-import { Skeleton } from "@bonne-garde/ui/components/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@bonne-garde/ui/components/tooltip";
+} from "@acme/ui/components/sheet";
+import { Skeleton } from "@acme/ui/components/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@acme/ui/components/tooltip";
 import { PanelLeftIcon } from "lucide-react";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";

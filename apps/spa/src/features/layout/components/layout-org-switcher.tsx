@@ -8,14 +8,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@bonne-garde/ui/components/dropdown-menu";
+} from "@acme/ui/components/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@bonne-garde/ui/components/sidebar";
-import { useUIStore } from "@bonne-garde/spa/stores/ui.store";
+} from "@acme/ui/components/sidebar";
+import { useUIStore } from "@acme/spa/stores/ui.store";
 
 const organizations = [{ id: "1", name: "My Organization" }];
 

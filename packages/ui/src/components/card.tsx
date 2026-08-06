@@ -1,7 +1,7 @@
 import * as React from "react";
 import { motion, type HTMLMotionProps } from "motion/react";
 
-import { cn } from "@bonne-garde/ui/lib/utils";
+import { cn } from "@acme/ui/lib/utils";
 
 interface CardProps extends HTMLMotionProps<"div"> {
   size?: "default" | "sm";

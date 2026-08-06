@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { branding } from "@acme/config";
 import {
   createMemoryEmailProvider,
   renderEmailTemplate,
@@ -22,11 +23,11 @@ test("memory provider captures emails", async () => {
 
 test("react-email template renders html", async () => {
   const html = await renderEmailTemplate(WelcomeTemplate, {
-    appName: "Bonne Garde",
+    appName: branding.displayName,
     userName: "Neto",
     ctaUrl: "https://example.com",
   });
 
-  expect(html.includes("Welcome to Bonne Garde")).toBeTrue();
+  expect(html.includes(`Welcome to ${branding.displayName}`)).toBeTrue();
   expect(html.includes("https://example.com")).toBeTrue();
 });

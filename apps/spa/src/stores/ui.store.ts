@@ -19,7 +19,7 @@ export const useUIStore = create<UIStore>()(
       setActiveOrg: (id) => set({ activeOrgId: id }),
     }),
     {
-      name: "bonne-garde-ui-store",
+      name: "acme-ui-store",
       partialize: (state) => ({ sidebarOpen: state.sidebarOpen, activeOrgId: state.activeOrgId }),
     },
   ),

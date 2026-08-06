@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import { ALLOWED_IMAGE_TYPES } from "@bonne-garde/api/lib/r2";
+import { ALLOWED_IMAGE_TYPES } from "@acme/api/lib/r2";
 
 export const mediaParams = t.Object({ id: t.String() });
 export const mediaFileParams = t.Object({ key: t.String() });

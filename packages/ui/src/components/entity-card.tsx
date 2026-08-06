@@ -1,4 +1,4 @@
-import { cn } from "@bonne-garde/ui/lib/utils";
+import { cn } from "@acme/ui/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import { Badge } from "./badge";
 import type { BadgeProps } from "./badge";

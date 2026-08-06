@@ -1,6 +1,7 @@
 import { Outlet, useMatches } from "react-router";
 import { motion } from "motion/react";
 import { Gem } from "lucide-react";
+import { branding } from "@acme/config";
 import { ThemeToggle } from "../../../components/theme-toggle";
 import { isAuthLayoutHandle, type AuthLayoutHandle } from "../types";
 
@@ -11,7 +12,7 @@ export default function AuthLayout() {
     (acc, match) => (isAuthLayoutHandle(match.handle) ? match.handle : acc),
     undefined,
   );
-  const title = handle?.title ?? "Bonne Garde";
+  const title = handle?.title ?? branding.displayName;
   const subtitle = handle?.subtitle ?? "Backoffice";
 
   return (
@@ -46,7 +47,9 @@ export default function AuthLayout() {
 
         {/* Footer */}
         <footer className="relative z-10 px-6 py-4 text-center text-sm text-muted-foreground bg-background/80 backdrop-blur-sm">
-          <p>&copy; {new Date().getFullYear()} Bonne Garde.</p>
+          <p>
+            &copy; {new Date().getFullYear()} {branding.legalName}.
+          </p>
         </footer>
       </div>
 

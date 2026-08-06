@@ -1,5 +1,5 @@
--- Bonne Garde — Seed Data
-INSERT INTO "user" (id, name, email, created_at, updated_at) VALUES ('8fb204cb-55c4-48d7-a9b1-59727d613df6', 'Admin', 'admin@bonne-garde.local', 1774790692832, 1774790692832);
+-- Seed data
+INSERT INTO "user" (id, name, email, created_at, updated_at) VALUES ('8fb204cb-55c4-48d7-a9b1-59727d613df6', 'Admin', 'admin@example.local', 1774790692832, 1774790692832);
 INSERT INTO "user" (id, name, email, created_at, updated_at) VALUES ('262eb794-3167-49b0-a0d9-5b9faf9a48f3', 'Alice', 'alice@example.com', 1774790692832, 1774790692832);
 INSERT INTO "user" (id, name, email, created_at, updated_at) VALUES ('1aecbd7d-9983-4a56-ad08-6eb0628e7156', 'Bob', 'bob@example.com', 1774790692832, 1774790692832);
 INSERT INTO "organization" (id, name, slug, created_at) VALUES ('9516b200-dc48-45e5-a64d-247151cf2e60', 'My Organization', 'my-org', 1774790692832);

@@ -224,7 +224,7 @@ async function createTestUserAndOrg(
 }
 
 describe("R2 Helper Functions", () => {
-  const publicUrl = "https://media.bonne-garde.com";
+  const publicUrl = "https://media.example.com";
 
   describe("validateFile", () => {
     it("should accept valid image types", () => {
@@ -289,7 +289,7 @@ describe("R2 Helper Functions", () => {
 
   describe("extractKeyFromUrl", () => {
     it("should extract key from URL", () => {
-      const url = "https://media.bonne-garde.com/medias/nodes/123/uuid-test.jpg";
+      const url = "https://media.example.com/medias/nodes/123/uuid-test.jpg";
 
       const key = extractKeyFromUrl(url, publicUrl);
 
@@ -297,9 +297,9 @@ describe("R2 Helper Functions", () => {
     });
 
     it("should handle trailing slashes in public URL", () => {
-      const url = "https://media.bonne-garde.com/medias/nodes/123/uuid-test.jpg";
+      const url = "https://media.example.com/medias/nodes/123/uuid-test.jpg";
 
-      const key = extractKeyFromUrl(url, "https://media.bonne-garde.com/");
+      const key = extractKeyFromUrl(url, "https://media.example.com/");
 
       expect(key).toBe("medias/nodes/123/uuid-test.jpg");
     });
@@ -324,7 +324,7 @@ describe("R2 Helper Functions", () => {
       });
 
       expect(result.url).toMatch(
-        /^https:\/\/media\.bonne-garde\.com\/medias\/test\/[a-f0-9-]+-test\.jpg$/,
+        /^https:\/\/media\.example\.com\/medias\/test\/[a-f0-9-]+-test\.jpg$/,
       );
       expect(result.key).toMatch(/^medias\/test\/[a-f0-9-]+-test\.jpg$/);
 
@@ -365,7 +365,7 @@ describe("MediaService", () => {
   let db: TestDb;
   let bucket: MockR2Bucket;
   let api: ReturnType<typeof treaty<ReturnType<typeof createTestApp>>>;
-  const publicUrl = "https://media.bonne-garde.com";
+  const publicUrl = "https://media.example.com";
   let userId: string;
   let orgId: string | undefined;
 
@@ -441,7 +441,7 @@ describe("MediaService", () => {
       expect(data?.id).toBeDefined();
       expect(data?.name).toBe("test-image.jpg");
       expect(data?.url).toMatch(
-        /^https:\/\/media\.bonne-garde\.com\/medias\/test-folder\/[a-f0-9-]+-test-image\.jpg$/,
+        /^https:\/\/media\.example\.com\/medias\/test-folder\/[a-f0-9-]+-test-image\.jpg$/,
       );
       expect(data?.key).toBeDefined();
 
@@ -612,7 +612,7 @@ describe("MediaService", () => {
 describe("R2 Integration - Full Flow", () => {
   it("should complete full upload-download-delete cycle", async () => {
     const bucket = new MockR2Bucket();
-    const publicUrl = "https://media.bonne-garde.com";
+    const publicUrl = "https://media.example.com";
 
     // Upload
     const file = new File(["image-data-here"], "my-photo.png", { type: "image/png" });
@@ -644,7 +644,7 @@ describe("R2 Integration - Full Flow", () => {
 
   it("should handle multiple files in same folder", async () => {
     const bucket = new MockR2Bucket();
-    const publicUrl = "https://media.bonne-garde.com";
+    const publicUrl = "https://media.example.com";
 
     const files = [
       new File(["content1"], "file1.jpg", { type: "image/jpeg" }),
@@ -679,7 +679,7 @@ describe("R2 Integration - Full Flow", () => {
 describe("Media Routes - Validation", () => {
   let db: TestDb;
   let bucket: MockR2Bucket;
-  const publicUrl = "https://media.bonne-garde.com";
+  const publicUrl = "https://media.example.com";
 
   beforeEach(async () => {
     db = createTestDb();

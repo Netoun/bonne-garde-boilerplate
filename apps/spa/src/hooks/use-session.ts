@@ -1,4 +1,4 @@
-import { authClient } from "@bonne-garde/spa/lib/auth";
+import { authClient } from "@acme/spa/lib/auth";
 
 export function useSession() {
   const { data, isPending, error } = authClient.useSession();

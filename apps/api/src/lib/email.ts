@@ -1,4 +1,7 @@
 import { Resend } from "resend";
+import { branding, formatEmailFrom } from "@acme/config";
+
+const defaultEmailFrom = formatEmailFrom(branding.legalName, "noreply@example.com");
 
 export function createResendClient(apiKey: string) {
   return new Resend(apiKey);
@@ -8,7 +11,7 @@ export async function sendEmail({
   resend,
   to,
   subject,
-  from = "Bonne Garde <noreply@example.com>",
+  from = defaultEmailFrom,
   react,
 }: {
   resend: Resend;

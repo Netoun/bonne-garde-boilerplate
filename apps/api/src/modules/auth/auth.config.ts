@@ -3,16 +3,16 @@ import { scrypt, randomBytes } from "node:crypto";
 import { organization } from "better-auth/plugins";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { eq, and, isNull } from "drizzle-orm";
-import { createDB } from "@bonne-garde/api/modules/db/db.client";
+import { createDB } from "@acme/api/modules/db/db.client";
 import {
   authSchema,
   member,
   organization as orgTable,
-} from "@bonne-garde/api/modules/db/schemas/db.auth-schema";
-import { createResendClient, sendEmail } from "@bonne-garde/api/lib/email";
-import { VerifyEmailEmail, ResetPasswordEmail } from "@bonne-garde/emails";
-import { config } from "@bonne-garde/api/lib/app.config";
-import { logger } from "@bonne-garde/api/lib/logger";
+} from "@acme/api/modules/db/schemas/db.auth-schema";
+import { createResendClient, sendEmail } from "@acme/api/lib/email";
+import { VerifyEmailEmail, ResetPasswordEmail } from "@acme/emails";
+import { config } from "@acme/api/lib/app.config";
+import { logger } from "@acme/api/lib/logger";
 
 function generateSlug(name: string): string {
   const base = name

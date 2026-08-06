@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import { Outlet, useNavigate } from "react-router";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@bonne-garde/ui/components/sidebar";
-import { TooltipProvider } from "@bonne-garde/ui/components/tooltip";
-import { Separator } from "@bonne-garde/ui/components/separator";
-import { ThemeToggle } from "@bonne-garde/spa/components/theme-toggle";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@acme/ui/components/sidebar";
+import { TooltipProvider } from "@acme/ui/components/tooltip";
+import { Separator } from "@acme/ui/components/separator";
+import { ThemeToggle } from "@acme/spa/components/theme-toggle";
 import { LayoutAppSidebar } from "../components/layout-app-sidebar";
-import { useSession } from "@bonne-garde/spa/hooks/use-session";
-import { useOrganizations } from "@bonne-garde/spa/features/organization/hooks/use-organization";
+import { useSession } from "@acme/spa/hooks/use-session";
+import { useOrganizations } from "@acme/spa/features/organization/hooks/use-organization";
 import { LayoutDynamicBreadcrumb } from "../components/layout-dynamic-breadcrumb";
 import { useRouteHeader } from "../hooks/use-route-header";
 

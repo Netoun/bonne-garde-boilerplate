@@ -3,10 +3,11 @@ import { Elysia } from "elysia";
 import { CloudflareAdapter } from "elysia/adapter/cloudflare-worker";
 import { cors } from "@elysiajs/cors";
 import { openapi } from "@elysiajs/openapi";
-import { config } from "@bonne-garde/api/lib/app.config";
-import { dbModule } from "@bonne-garde/api/modules/db/db.module";
-import { authModule } from "@bonne-garde/api/modules/auth/auth.module";
-import { mediaModule } from "@bonne-garde/api/modules/media/media.module";
+import { branding } from "@acme/config";
+import { config } from "@acme/api/lib/app.config";
+import { dbModule } from "@acme/api/modules/db/db.module";
+import { authModule } from "@acme/api/modules/auth/auth.module";
+import { mediaModule } from "@acme/api/modules/media/media.module";
 
 export const app = new Elysia({ aot: false, adapter: CloudflareAdapter })
   .use(
@@ -22,8 +23,8 @@ export const app = new Elysia({ aot: false, adapter: CloudflareAdapter })
     openapi({
       documentation: {
         info: {
-          title: "Bonne Garde API",
-          description: "API for the Bonne Garde platform",
+          title: `${branding.displayName} API`,
+          description: `API for the ${branding.displayName} platform`,
           version: "0.0.1",
         },
       },

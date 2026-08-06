@@ -20,10 +20,14 @@
     "packages/emails": {
       "project": ["src/**/*.{ts,tsx}"],
     },
+    "packages/config": {
+      "project": ["src/**/*.{ts,tsx}"],
+    },
     "packages/ui": {
       "project": ["src/**/*.{ts,tsx,css}"],
     },
   },
+
   "ignoreDependencies": ["@types/qrcode", "miniflare", "tsx", "module-alias"],
   "bun": true,
 }

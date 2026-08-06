@@ -1,8 +1,8 @@
 import type { Route } from "./+types/organization-members-page";
 import { Link } from "react-router";
 import { Users, ArrowLeft } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@bonne-garde/ui/components/card";
-import { Button } from "@bonne-garde/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@acme/ui/components/card";
+import { Button } from "@acme/ui/components/button";
 import { OrganizationMembersTable } from "../components/organization-members-table";
 import { OrganizationInviteMemberDialog } from "../components/organization-invite-member-dialog";
 import {

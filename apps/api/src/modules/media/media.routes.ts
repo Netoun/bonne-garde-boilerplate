@@ -1,8 +1,8 @@
 import { Elysia } from "elysia";
-import { AuthMacro } from "@bonne-garde/api/modules/auth/auth.macro";
+import { AuthMacro } from "@acme/api/modules/auth/auth.macro";
 import { MediaService } from "./media.service";
 import { mediaParams, uploadMediaBody, deleteMediaBody } from "./contracts/media.contract";
-import { R2Error } from "@bonne-garde/api/lib/r2";
+import { R2Error } from "@acme/api/lib/r2";
 
 export const mediaRoutes = new Elysia({ name: "media.routes", prefix: "/media" })
   .use(AuthMacro)

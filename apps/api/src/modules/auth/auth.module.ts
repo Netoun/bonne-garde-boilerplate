@@ -1,9 +1,9 @@
 import { Elysia } from "elysia";
-import { config } from "@bonne-garde/api/lib/app.config";
+import { config } from "@acme/api/lib/app.config";
 import { authService } from "./auth.service";
 import { AuthMacro } from "./auth.macro";
 import { createAuth } from "./auth.config";
-import { dbService } from "@bonne-garde/api/modules/db/db.service";
+import { dbService } from "@acme/api/modules/db/db.service";
 
 function withCors(req: Request, response: Response): Response {
   const origin = req.headers.get("origin") ?? "";

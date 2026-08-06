@@ -14,10 +14,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@bonne-garde/ui/components/table";
-import { Button } from "@bonne-garde/ui/components/button";
-import { Badge } from "@bonne-garde/ui/components/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@bonne-garde/ui/components/avatar";
+} from "@acme/ui/components/table";
+import { Button } from "@acme/ui/components/button";
+import { Badge } from "@acme/ui/components/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@acme/ui/components/avatar";
 import type { OrganizationMember } from "../hooks/use-organization";
 
 interface OrganizationMembersTableProps {

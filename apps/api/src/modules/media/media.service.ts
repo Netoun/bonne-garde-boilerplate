@@ -1,10 +1,10 @@
 import { Elysia } from "elysia";
-import { medias } from "@bonne-garde/api/modules/db/schemas/db.auth-schema";
+import { medias } from "@acme/api/modules/db/schemas/db.auth-schema";
 import { eq } from "drizzle-orm";
-import { dbService } from "@bonne-garde/api/modules/db/db.service";
-import type { DB } from "@bonne-garde/api/modules/db/db.client";
-import type { Env } from "@bonne-garde/api/lib/env";
-import { uploadToR2, deleteFromR2, R2Error, type UploadResult } from "@bonne-garde/api/lib/r2";
+import { dbService } from "@acme/api/modules/db/db.service";
+import type { DB } from "@acme/api/modules/db/db.client";
+import type { Env } from "@acme/api/lib/env";
+import { uploadToR2, deleteFromR2, R2Error, type UploadResult } from "@acme/api/lib/r2";
 
 export interface UploadMediaInput {
   file: File;

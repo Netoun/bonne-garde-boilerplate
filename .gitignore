@@ -17,6 +17,10 @@ build/
 .env.local
 .dev.vars
 
+# Init state (local)
+.acme-init.json
+.bonnegarde-init.json
+
 # Local DB
 *.db
 *.sqlite
