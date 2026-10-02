@@ -1,20 +1,20 @@
 # My App
 
-Monorepo Cloudflare : Bun + Elysia (Workers) + Drizzle (D1/SQLite) + Better-auth + React Router v7 (SPA + SSR + Static) + shadcn/ui.
+Monorepo Cloudflare : Bun + Elysia (Workers) + Drizzle (D1/SQLite) + Better-auth + React Router v8 (SPA + SSR + Static) + shadcn/ui. Toolchain: **Vite+** (Vite, Vitest, Oxlint, Oxfmt).
 
 ## Stack
 
-| Layer      | Tech                              |
-| ---------- | --------------------------------- |
-| Runtime    | Bun                               |
-| API        | Elysia (Cloudflare Workers)       |
-| Database   | Drizzle + D1 (SQLite)             |
-| Auth       | Better-auth                       |
-| Backoffice | React Router v7 (SPA) + shadcn/ui |
-| Player     | React Router v7 (SSR)             |
-| Landing    | React Router v7 (Static)          |
-| Storage    | Cloudflare R2                     |
-| Email      | Resend + React-Email              |
+| Layer    | Tech                                                |
+| -------- | --------------------------------------------------- |
+| Runtime  | Bun                                                 |
+| API      | Elysia (Cloudflare Workers)                         |
+| Database | Drizzle + D1 (SQLite)                               |
+| Auth     | Better-auth                                         |
+| SPA      | React Router v8 + shadcn/ui — Cloudflare Pages      |
+| SSR      | React Router v8 — Cloudflare Workers                |
+| Static   | React Router v8 (SPA by default) — Cloudflare Pages |
+| Storage  | Cloudflare R2                                       |
+| Email    | Resend + React-Email                                |
 
 ## Structure
 
@@ -35,18 +35,28 @@ acme/
 ## Getting Started
 
 ```bash
-bun install
+bun install --frozen-lockfile
 bun run init
 bun run brand   # rejouable — identité produit + scope npm
 bun run dev
 ```
 
-## Default Admin
+Use the Bun version declared in `package.json#packageManager`. The init wizard keeps workspace dependencies automatically; preview removals with `bun run init -- --dry-run`.
+
+## Verification
+
+`bun run verify` runs formatting/lint checks, typechecking (including scripts and API tests), all tests, and all builds.
+
+`bun run test` includes script tests, real SQLite API tests, package tests, and frontend tests through Vite+ (Vitest + RTL + MSW).
+
+## Default Admin — local development only
 
 Après seed :
 
 - Email: `admin@example.local`
 - Password: `password123`
+
+Never seed these demo credentials in production. Configure Cloudflare resources and secrets before enabling deployment; see [Environment](./docs/ENVIRONMENT.md).
 
 ## Docs
 

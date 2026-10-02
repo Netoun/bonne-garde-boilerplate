@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "bun run --parallel --filter '*' dev",
     "build": "bun run --parallel --filter '*' build",
-    "typecheck": "bun run --parallel --filter '*' typecheck",
+    "typecheck": "bun run typecheck:scripts && bun run --parallel --filter '*' typecheck",
+    "typecheck:scripts": "tsc --project scripts/tsconfig.json --noEmit",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",
     "fmt": "vp fmt --write",
@@ -18,7 +19,9 @@
     "check": "vp check",
     "knip": "knip",
     "knip:fix": "knip --fix --allow-remove-files",
-    "test": "bun run --parallel --filter '*' test",
+    "test": "bun run test:scripts && bun run --parallel --filter '*' test",
+    "test:scripts": "bun test scripts",
+    "verify": "bun run check && bun run typecheck && bun run test && bun run build",
     "ui": "bun run --filter '@acme/ui' registry",
     "prepare": "husky",
     "gen:commands": "bun scripts/gen-commands.ts",
@@ -28,10 +31,16 @@
     "init": "bun scripts/init.ts"
   },
   "devDependencies": {
+    "@acme/config": "workspace:*",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
     "@types/bun": "1.3.14",
     "@types/react": "19.2.18",
     "husky": "9.1.7",
+    "jsdom": "30.1.1",
     "knip": "6.32.0",
+    "msw": "2.15.0",
     "typescript": "7.0.2",
     "vite": "catalog:",
     "vite-plus": "catalog:"
