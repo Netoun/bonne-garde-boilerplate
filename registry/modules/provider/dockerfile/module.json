@@ -26,7 +26,6 @@
         { "name": "PORT", "required": false, "example": "5172" },
         { "name": "DATA_DIR", "required": false, "example": "/data" },
         { "name": "APP_URL", "required": true, "example": "http://localhost:5172" },
-        { "name": "BETTER_AUTH_SECRET", "required": false, "example": "" },
         { "name": "RESEND_API_KEY", "required": true, "example": "" }
       ]
     }

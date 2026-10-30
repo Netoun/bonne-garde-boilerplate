@@ -24,10 +24,7 @@
         "packages/api-runtime/src/index.ts",
         "packages/api-runtime/src/index.test.ts"
       ],
-      "env": [
-        { "name": "BETTER_AUTH_SECRET", "required": true, "example": "" },
-        { "name": "RESEND_API_KEY", "required": true, "example": "" }
-      ]
+      "env": [{ "name": "RESEND_API_KEY", "required": true, "example": "" }]
     }
   ]
 }

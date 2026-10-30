@@ -1737,6 +1737,30 @@ describe("module contract", () => {
     });
   });
 
+  test("an env key belongs to the one module that reads it: no two categories declare the same key (035, 060)", async () => {
+    const catalog = await loadLocalRegistry(join(ROOT, "registry/registry.json"));
+    const declaredBy = new Map<string, Set<string>>();
+
+    for (const { manifest } of catalog.modules) {
+      for (const variant of manifest.variants) {
+        for (const { name } of variant.env ?? []) {
+          declaredBy.set(name, (declaredBy.get(name) ?? new Set()).add(manifest.category));
+        }
+      }
+    }
+
+    // Modules of two categories are installed together, so a second declarer is a region conflict at
+    // install, and `add` skips a key already present: only this test sees it. Two modules of one
+    // category are alternatives (`provider`) or a family that is not this test's to settle (`web`).
+    expect(
+      [...declaredBy]
+        .filter(([, categories]) => categories.size > 1)
+        .map(([name, categories]) => `${name}: ${[...categories].join(", ")}`),
+    ).toEqual([]);
+    // The providers read `BETTER_AUTH_SECRET` to complete it (`dockerfile`) and never to use it.
+    expect(declaredBy.get("BETTER_AUTH_SECRET")?.has("provider") ?? false).toBe(false);
+  });
+
   test("every patch a variant declares is one the CLI applies, with arguments it accepts", async () => {
     const catalog = await loadLocalRegistry(join(ROOT, "registry/registry.json"));
     const refused: string[] = [];

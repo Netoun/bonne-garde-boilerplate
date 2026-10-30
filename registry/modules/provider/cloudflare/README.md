@@ -25,8 +25,8 @@ None. `provider` is first in spec 035's topological order: it peers on nothing, 
 ## What the module writes
 
 `bg add provider/cloudflare` writes the `packages/api-runtime` workspace, the package `apps/api`
-imports for everything that depends on where it runs, and merges `BETTER_AUTH_SECRET` and
-`RESEND_API_KEY` into `.env.example`:
+imports for everything that depends on where it runs, and merges `RESEND_API_KEY` into
+`.env.example`:
 
 - `runtimeOptions`: `{ adapter: CloudflareAdapter, aot: false }`.
 - `readRuntimeEnv()`: the `cloudflare:workers` environment, `process.env` where that specifier does

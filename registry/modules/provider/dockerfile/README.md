@@ -16,7 +16,7 @@ Harvested from `bonne-garde-keeper`, which shipped this runtime and whose design
 | Runtime adapter | Elysia's default Bun adapter, listening on `PORT`; `aot` left on         | done                  |
 | Environment     | `process.env`, completed for one origin                                  | done                  |
 | Origins         | One `APP_URL`, which fills the `SPA_URL` / `SSR_URL` / `API_URL` triple  | done, with one caveat |
-| Secrets         | `BETTER_AUTH_SECRET` generated into `DATA_DIR` on first start when unset | done                  |
+| Secrets         | `BETTER_AUTH_SECRET` generated into `DATA_DIR` on first start when unset | done, `auth` reads it |
 | Deploy          | `docker build` and `compose.yaml`                                        | done                  |
 | Database        | SQLite file under `DATA_DIR`, through `drizzle-orm/libsql`               | **not done**          |
 | Object storage  | Local filesystem under `DATA_DIR`                                        | **not done**          |
@@ -52,7 +52,10 @@ and `bun run test` runs them; in this repo `registry/` is not one, so they run t
 through Vite preview, which needs a real Node; Bun alone cannot run that step. This is the kind of
 thing that costs an afternoon to rediscover.
 
-**`BETTER_AUTH_SECRET` is generated, not required.** Keeper's reasoning: a volume and a port should
+**`BETTER_AUTH_SECRET` is generated, not required.** The key is the `auth` module's: it declares it in
+`.env.example` and reads it through `readRuntimeEnv()`, so on this provider it finds the generated
+value and an operator's own wins. The provider declares no env entry for it, since a key belongs to the
+module that reads it (035). Keeper's reasoning: a volume and a port should
 be enough for `docker run`, and failing at startup on a missing secret breaks that. It is written
 once under `DATA_DIR`, to a temporary file that is hard-linked into place, so two simultaneous
 starts cannot produce two secrets and a reader never sees an empty file. `RESEND_API_KEY` is not

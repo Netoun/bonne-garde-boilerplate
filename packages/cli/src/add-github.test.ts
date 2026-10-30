@@ -160,7 +160,7 @@ describe("bg add from a github source", () => {
       const bg = await readBg(root);
       expect(bg.modules.provider?.map((record) => record.id)).toEqual(["cloudflare"]);
       expect(bg.files["packages/api-runtime/src/index.ts"]?.owner).toBe("provider/cloudflare");
-      expect(await readFile(join(root, ".env.example"), "utf8")).toContain("BETTER_AUTH_SECRET=");
+      expect(await readFile(join(root, ".env.example"), "utf8")).toContain("RESEND_API_KEY=");
     }
   });
 
