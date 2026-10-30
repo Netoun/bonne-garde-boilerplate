@@ -52,7 +52,7 @@ Everything in `packages/auth`, from explicit paths:
 Dependencies are exact: `better-auth` and `@better-auth/drizzle-adapter` at the same release (a
 contract test pins that, and the CLI the scripts run), `drizzle-orm`, `elysia`, and the project's
 `api`, `api-runtime` and `db` as workspaces. `api` imports `auth` to mount it and `auth` imports `api`'s
-`lib/*`; `db`'s barrel will re-export `auth`'s tables. Bun accepts those workspace cycles.
+`lib/*`; `db`'s barrel re-exports `auth`'s tables. Bun accepts those workspace cycles (see Wiring).
 
 ## The schema is pure generator output
 
@@ -108,6 +108,33 @@ the SPA's `index.html` for a browser navigation. `auth.flow.test.ts` pins both h
 
 The legacy `apps/spa` still talks to the legacy `apps/api` at `/auth`; the front's `lib/auth.ts` moves
 with the feature items (09, stage 6) and takes `AUTH_BASE_PATH` then.
+
+## Wiring (060)
+
+The module writes nothing outside `packages/auth` by copy. It reaches the rest of the project through
+five patches on four known seams, each with the sentence a failure turns into a pending intention:
+
+| Type                   | File                              | Regions                          |
+| ---------------------- | --------------------------------- | -------------------------------- |
+| `package.dependencies` | `apps/api/package.json`           | `dependencies.{{SCOPE}}/auth`    |
+| `ts.addImport`         | `apps/api/src/app.ts`             | `imports[{{SCOPE}}/auth]`        |
+| `ts.elysiaUse`         | `apps/api/src/app.ts`             | `elysia[app].use[authModule]`    |
+| `package.dependencies` | `packages/db/package.json`        | `dependencies.{{SCOPE}}/auth`    |
+| `ts.addNamedExport`    | `packages/db/src/schema/index.ts` | `exports[{{SCOPE}}/auth/schema]` |
+
+`.use(authModule)` lands after `.use(dbModule)`, which `orm/drizzle` put there. The export is every table
+and relation of `schema.ts` (a contract test compares the two lists), so `bun run db:generate` in
+`packages/db` writes the auth tables into the project's one migration, and `createDB` sees them.
+
+The wiring makes three workspace cycles: `api` and `auth` (the shell mounts auth, auth reads the shell's
+`lib/*`), `db` and `auth` (the barrel re-exports auth's tables, auth reads `createDB`), and so `db`, `api`,
+`auth` in a ring. Bun installs it, `tsc` and `bun test` resolve it, and golden runs all three. A module
+cycle would not work and there is none: `schema.ts` imports nothing of the project, and nothing of `auth`
+runs at import time.
+
+**The barrel keeps its `export {};`.** It is `orm/drizzle`'s, there so the file is a module while empty;
+once a module re-exports from it, `vp check` reports it as an empty export (a warning). Removing it takes
+a patch the catalog does not have.
 
 ## Seed
 
@@ -167,9 +194,6 @@ The limits live in Better Auth's memory store, per isolate on Workers.
 
 ## Not here
 
-- **Wiring into `apps/api` and the schema barrel.** The `.use(authModule)` in `apps/api/src/app.ts`,
-  the `{{SCOPE}}/auth` dependency of `apps/api` and of `packages/db`, and the `ts.addNamedExport` of
-  the tables into `packages/db/src/schema/index.ts` need the `package.dependencies` patch (060).
 - **`authService` and `dbService`** of the legacy module, which decorated the context with the auth
   instance and an empty `db`. Nothing read them but the macro.
 - **`lib/email.ts` and the React emails** (the `email` module's), and `getAuthClientConfig`, which

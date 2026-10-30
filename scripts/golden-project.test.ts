@@ -18,12 +18,15 @@ import {
   expectNothingToApply,
   expectPatches,
   expectPeerRefusal,
+  expectRan,
   expectRefusal,
   expectRegenerated,
+  expectSeeded,
   expectRegionsRecorded,
   expectServed,
   GOLDEN_BARREL_LINE,
   GOLDEN_TABLE,
+  AUTH_MIN_TESTS,
   hasAuth,
   hasDatabase,
   WITHOUT_ORM,
@@ -465,6 +468,13 @@ describe("the golden project and patches", () => {
           "scripts.db:migrate:local",
           "scripts.db:migrate:remote",
         ],
+        "auth/better-auth": [
+          "dependencies.@app/auth",
+          "dependencies.@app/auth",
+          "elysia[app].use[authModule]",
+          "exports[@app/auth/schema]",
+          "imports[@app/auth]",
+        ],
         "orm/drizzle": [
           "dependencies.@app/db",
           "dependencies.drizzle-orm",
@@ -904,6 +914,45 @@ describe("the auth phases", () => {
       expect(() =>
         expectPeerRefusal({ code: 1, stderr: "unknown name: better-auth\n" }, "better-auth", "orm"),
       ).toThrow(/category orm.*unknown name/s);
+    });
+  });
+
+  describe("expectRan (the auth tests run in the project, not only in the registry)", () => {
+    test("passes when the workspace ran at least the floor, and fails below it or when it is absent", () => {
+      const counts = { "@app/auth": AUTH_MIN_TESTS, "@app/api": 33 };
+
+      expect(() => expectRan(counts, "@app/auth", AUTH_MIN_TESTS)).not.toThrow();
+      expect(() => expectRan(counts, "@app/auth", AUTH_MIN_TESTS + 1)).toThrow(/ran 45 tests/);
+      expect(() => expectRan({ "@app/api": 33 }, "@app/auth", 1)).toThrow(/ran 0 tests/);
+    });
+  });
+
+  describe("expectSeeded (db:seed leaves the admin once, db:reset again)", () => {
+    const admin = [{ email: "admin@example.local", email_verified: 1 }];
+    const owner = [{ role: "owner" }];
+
+    test("passes on one verified admin who owns one organization", () => {
+      expect(() => expectSeeded(admin, owner)).not.toThrow();
+    });
+
+    test("fails on no user, on a second one, and on another email: a reset that did not clear first", () => {
+      expect(() => expectSeeded([], owner)).toThrow(/expected only/);
+      expect(() => expectSeeded([...admin, ...admin], owner)).toThrow(/expected only/);
+      expect(() => expectSeeded([{ email: "x@example.com", email_verified: 1 }], owner)).toThrow(
+        /expected only/,
+      );
+    });
+
+    test("fails on an unverified admin, who could not sign in", () => {
+      expect(() =>
+        expectSeeded([{ email: "admin@example.local", email_verified: 0 }], owner),
+      ).toThrow(/not verified/);
+    });
+
+    test("fails when the admin is not the one owner", () => {
+      expect(() => expectSeeded(admin, [])).toThrow(/one owner/);
+      expect(() => expectSeeded(admin, [{ role: "member" }])).toThrow(/one owner/);
+      expect(() => expectSeeded(admin, [...owner, ...owner])).toThrow(/one owner/);
     });
   });
 

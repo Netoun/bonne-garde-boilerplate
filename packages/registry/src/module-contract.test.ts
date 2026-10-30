@@ -15,7 +15,7 @@ import {
 import { formatWithProjectFormatter } from "../test-support/project-formatter";
 import { applyInstallPlan } from "./apply-plan";
 import { loadLocalRegistry } from "./load-registry";
-import { resolveModulePlans } from "./module-plan";
+import { resolveModulePlans, type ModuleRef } from "./module-plan";
 import { patchRegions, writePatch } from "./patch-ops";
 import { plannedPatches } from "./patch-plan";
 import { addNamedExport } from "./ts-patches";
@@ -1872,7 +1872,70 @@ describe("module contract", () => {
         await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: AUTH, dot: true, onlyFiles: true }))
       ).sort();
       expect([...(variant.copy ?? [])].sort()).toEqual(shipped);
-      expect(variant.patch).toBeUndefined();
+    });
+
+    test("it wires itself in by patches on four known seams, and by nothing else (060)", async () => {
+      const { variant } = await authModule();
+      const patches = (variant.patch ?? []).map(({ type, file }) => `${type} ${String(file)}`);
+
+      expect(patches).toEqual([
+        "package.dependencies apps/api/package.json",
+        "ts.addImport apps/api/src/app.ts",
+        "ts.elysiaUse apps/api/src/app.ts",
+        "package.dependencies packages/db/package.json",
+        "ts.addNamedExport packages/db/src/schema/index.ts",
+      ]);
+      // A patch that fails becomes a pending intention, so each says what it was for.
+      for (const patch of variant.patch ?? []) {
+        expect(typeof patch.intent).toBe("string");
+      }
+    });
+
+    test("apps/api and packages/db depend on the auth package they import from, as workspaces", async () => {
+      const { variant } = await authModule();
+      const declared = (file: string) =>
+        (variant.patch ?? [])
+          .filter((patch) => patch.type === "package.dependencies" && patch.file === file)
+          .map((patch) => patch.dependencies);
+
+      expect(declared("apps/api/package.json")).toEqual([{ "{{SCOPE}}/auth": "workspace:*" }]);
+      expect(declared("packages/db/package.json")).toEqual([{ "{{SCOPE}}/auth": "workspace:*" }]);
+    });
+
+    test("the module is mounted by `.use(authModule)` on the `app` of the shell, imported from the package", async () => {
+      const { variant } = await authModule();
+      const find = (type: string) =>
+        (variant.patch ?? []).find(
+          (patch) => patch.type === type && patch.file === "apps/api/src/app.ts",
+        );
+
+      expect(find("ts.addImport")).toMatchObject({
+        moduleSpecifier: "{{SCOPE}}/auth",
+        namedImports: ["authModule"],
+      });
+      expect(find("ts.elysiaUse")).toMatchObject({ targetName: "app", argument: "authModule" });
+      // The name it imports is one the package exports.
+      expect(await authText("packages/auth/src/index.ts")).toMatch(/\bauthModule\b/);
+    });
+
+    test("the barrel re-exports every table and relation of the schema, and only those, and stays what the formatter writes", async () => {
+      const { variant } = await authModule();
+      const patch = (variant.patch ?? []).find((entry) => entry.type === "ts.addNamedExport");
+      const exported = Array.isArray(patch?.exports) ? patch.exports.map(String) : [];
+      const schema = await authText("packages/auth/src/schema.ts");
+      const declared = [...schema.matchAll(/^export const (\w+) = /gm)].map(
+        ([, name]) => name ?? "",
+      );
+      const file = "packages/db/src/schema/index.ts";
+      const barrel = await readFile(join(MODULES, "orm/drizzle/template", file), "utf8");
+
+      expect(patch?.moduleSpecifier).toBe("{{SCOPE}}/auth/schema");
+      expect([...exported].sort()).toEqual([...declared].sort());
+      const wired = addNamedExport(file, barrel, "@app/auth/schema", exported);
+      expect(wired).toContain('from "@app/auth/schema";');
+      await expect(formatWithProjectFormatter({ [file]: wired })).resolves.toEqual({
+        [file]: wired,
+      });
     });
 
     test("package.json carries exports and scripts and no dependency map, and each export is a file it ships", async () => {
@@ -1923,7 +1986,7 @@ describe("module contract", () => {
     test("the installed peers pick the variant, and a missing peer is named before anything is written", async () => {
       const { catalog } = await authModule();
       const project = createEmptyProjectManifest({ scope: "@app", registries: {} });
-      const stack = [
+      const stack: ModuleRef[] = [
         { category: "provider", id: "cloudflare" },
         { category: "config", id: "branding" },
         { category: "api", id: "elysia" },

@@ -179,6 +179,32 @@ export function expectRegenerated(shipped: string, regenerated: string): void {
   );
 }
 
+/** The admin `db:seed` creates (`packages/auth/src/seed.ts`), which golden reads back from D1. */
+export const SEEDED_ADMIN = "admin@example.local";
+
+/**
+ * What `db:seed` left in D1: one user, the admin, verified, who owns one organization. Run twice (the
+ * seed, then `db:reset`) it has to leave the same rows, not two admins: both clear before they insert.
+ */
+export function expectSeeded(
+  users: readonly Record<string, unknown>[],
+  members: readonly Record<string, unknown>[],
+): void {
+  const [admin, ...others] = users;
+  if (admin === undefined || others.length > 0 || admin.email !== SEEDED_ADMIN) {
+    throw new Error(`D1 holds users ${JSON.stringify(users)}, expected only ${SEEDED_ADMIN}`);
+  }
+  if (admin.email_verified !== 1) {
+    throw new Error(`the seeded admin is not verified: ${JSON.stringify(admin)}`);
+  }
+  const [owner, ...rest] = members;
+  if (owner === undefined || rest.length > 0 || owner.role !== "owner") {
+    throw new Error(
+      `D1 holds members ${JSON.stringify(members)}, expected the admin as the one owner`,
+    );
+  }
+}
+
 /**
  * What a project needs for `auth/better-auth` but its ORM. Adding auth to it is refused, and the
  * message names the missing peer's category (035 and 050 acceptance), before anything is written.
@@ -297,6 +323,13 @@ export const PATCHED: Readonly<Record<string, Readonly<Record<string, readonly s
       "env.production.d1_databases",
       "scripts.db:migrate:local",
       "scripts.db:migrate:remote",
+    ],
+    "auth/better-auth": [
+      "dependencies.@app/auth",
+      "dependencies.@app/auth",
+      "elysia[app].use[authModule]",
+      "exports[@app/auth/schema]",
+      "imports[@app/auth]",
     ],
     "orm/drizzle": [
       "dependencies.@app/db",
@@ -605,6 +638,21 @@ export function testCounts(output: string): Record<string, number> {
     }
   }
   return counts;
+}
+
+/** How many tests the auth package runs in the project; fewer means the root `test` stopped reaching it. */
+export const AUTH_MIN_TESTS = 45;
+
+/** The workspace ran at least `atLeast` tests: a workspace the root `test` skipped would otherwise pass in silence. */
+export function expectRan(
+  counts: Readonly<Record<string, number>>,
+  workspace: string,
+  atLeast: number,
+): void {
+  const ran = counts[workspace];
+  if (ran === undefined || ran < atLeast) {
+    throw new Error(`${workspace} ran ${ran ?? 0} tests, expected at least ${atLeast}`);
+  }
 }
 
 /** How a command ended, for one that is expected to fail. */
@@ -941,7 +989,11 @@ async function configured(
   await step("typecheck", () => run([BUN, "run", "typecheck"], project));
   await step("test", async () => {
     const { stdout, stderr } = await captureBoth([BUN, "run", "test"], project);
-    const counts = Object.entries(testCounts(`${stdout}\n${stderr}`));
+    const ran = testCounts(`${stdout}\n${stderr}`);
+    if (hasAuth(configuration)) {
+      expectRan(ran, `${SCOPE}/auth`, AUTH_MIN_TESTS);
+    }
+    const counts = Object.entries(ran);
     console.log(
       `golden: tests run: ${counts.map(([workspace, ran]) => `${workspace} ${ran}`).join(", ")}`,
     );
@@ -953,6 +1005,9 @@ async function configured(
   }
   if (hasDatabase(configuration)) {
     await migrated(project, timings, name);
+    if (hasAuth(configuration)) {
+      await seeded(project, timings, name);
+    }
   }
   await step("check", () => run([BUN, "run", "check"], project));
   for (const { module, checks } of added.filter(({ checks }) => checks.length > 0)) {
@@ -1073,6 +1128,35 @@ async function migrated(project: string, timings: Timing[], name: string): Promi
     );
     expectNothingToApply(await capture([BUN, "run", "db:migrate:local"], api, OFFLINE));
   });
+}
+
+/**
+ * `bun run db:seed` and then `db:reset` against the local D1 the migration phase filled, which has the
+ * auth tables because the module re-exports them from the schema barrel: each has to leave the admin of
+ * `seed.ts` in D1, once. The SQL is tested against SQLite and Better Auth in the module; this is the
+ * runner (`wrangler d1 execute` by the binding `DB`) and D1 itself.
+ */
+async function seeded(project: string, timings: Timing[], name: string): Promise<void> {
+  const api = join(project, "apps/api");
+  const auth = join(project, "packages/auth");
+  const select = async (statement: string) =>
+    d1Rows(
+      await capture(
+        ["bunx", "wrangler", "d1", "execute", "DB", "--local", "--json", "--command", statement],
+        api,
+        OFFLINE,
+      ),
+    );
+
+  for (const script of ["db:seed", "db:reset"]) {
+    await phase(timings, `${name}: auth ${script}`, async () => {
+      await run([BUN, "run", script], auth, OFFLINE);
+      expectSeeded(
+        await select('SELECT email, email_verified FROM "user"'),
+        await select('SELECT role FROM "member"'),
+      );
+    });
+  }
 }
 
 /**
