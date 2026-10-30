@@ -39,3 +39,33 @@ describe("the rate limit counts each client on its own", () => {
     expect(statuses[10]).toBe(429);
   });
 });
+
+// Better Auth matches a rule on the path it serves, relative to the base path, and ignores a rule that
+// matches nothing without a word. The rule that capped password-reset requests was written for
+// `/forget-password`, which version 1.6 serves as `/request-password-reset`: the built-in limit of three
+// a minute applied instead, and the five this file asks for never did.
+describe("the custom rate-limit rules", () => {
+  it("each name a path the instance serves", async () => {
+    const { auth } = await createTestAuth();
+    const served = new Set(Object.values(auth.api).map((endpoint) => endpoint.path));
+    const { customRules } = (await auth.$context).rateLimit;
+
+    expect(Object.keys(customRules ?? {}).filter((path) => !served.has(path))).toEqual([]);
+  });
+
+  it("let a client ask for a password reset five times a minute, and not a sixth", async () => {
+    const { call } = await createTestAuth({ clientIpHeaders: ["cf-connecting-ip"] });
+    const statuses: number[] = [];
+
+    // No such user: Better Auth answers 200 all the same, and sends nothing.
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const response = await call("/request-password-reset", {
+        body: { email: "nobody@example.com" },
+        ip: "203.0.113.30",
+      });
+      statuses.push(response.status);
+    }
+
+    expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
+  });
+});

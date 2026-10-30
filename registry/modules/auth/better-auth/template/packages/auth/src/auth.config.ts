@@ -246,7 +246,9 @@ export function createAuth({
       customRules: {
         "/sign-in/email": { window: 60, max: 10 },
         "/sign-up/email": { window: 60, max: 5 },
-        "/forget-password": { window: 60, max: 5 },
+        // Matched on the path Better Auth serves, relative to the base path: this one was
+        // `/forget-password` until 1.6 renamed the endpoint, and a rule that matches nothing is silent.
+        "/request-password-reset": { window: 60, max: 5 },
         "/reset-password": { window: 60, max: 5 },
       },
     },

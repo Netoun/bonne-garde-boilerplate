@@ -104,7 +104,13 @@ operator names), because with the port published `x-forwarded-for` is the client
 provider. `auth.rate-limit.test.ts` pins it: one client is throttled, another is not, and a forged
 `x-forwarded-for` does not pick a bucket.
 
-The limits are Better Auth's memory store, per isolate on Workers.
+The custom rules are per client and per minute: ten on `/sign-in/email`, five each on `/sign-up/email`,
+`/request-password-reset` and `/reset-password`, a hundred on the rest. A rule is matched on the path
+Better Auth serves, relative to the base path, and one that matches nothing is ignored without a word:
+the legacy `/forget-password` rule matched nothing since 1.6 renamed the endpoint, so the built-in three a
+minute applied. A test asks that every rule name a path the instance serves.
+
+The limits live in Better Auth's memory store, per isolate on Workers.
 
 ## Not here
 
