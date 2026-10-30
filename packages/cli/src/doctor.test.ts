@@ -473,7 +473,7 @@ describe("runDoctor: regions", () => {
     const root = await projectWithButton();
     await editManifest(root, (m) => ({
       ...m,
-      regions: { [BUTTON]: { "imports[react]": "auth/better-auth" } },
+      regions: { [BUTTON]: { "imports[react]": "auth/fixture-auth" } },
     }));
     const report = await runDoctor(root);
     expect(codes(report, "regions")).toEqual(["region-owner-unknown"]);
@@ -484,8 +484,8 @@ describe("runDoctor: regions", () => {
     const root = await projectWithButton();
     await editManifest(root, (m) => ({
       ...m,
-      modules: { auth: [moduleRecord("better-auth")] },
-      regions: { [BUTTON]: { "imports[react]": "auth/better-auth" } },
+      modules: { auth: [moduleRecord("fixture-auth")] },
+      regions: { [BUTTON]: { "imports[react]": "auth/fixture-auth" } },
     }));
     const report = await runDoctor(root);
     expect(codes(report, "regions")).toEqual([]);
@@ -498,7 +498,7 @@ describe("runDoctor: regions", () => {
 });
 
 describe("runDoctor: a failed patch that became a pending intention (060 Degradation)", () => {
-  const ID = "auth/better-auth/patch-ts-elysia-use-apps-api-src-app-ts-elysia-app-use-auth-module";
+  const ID = "auth/fixture-auth/patch-ts-elysia-use-apps-api-src-app-ts-elysia-app-use-auth-module";
   const failed = {
     type: "ts.elysiaUse",
     file: "apps/api/src/app.ts",
@@ -516,7 +516,7 @@ describe("runDoctor: a failed patch that became a pending intention (060 Degrada
     const root = await projectWithButton();
     await editManifest(root, (m) => ({
       ...m,
-      modules: { auth: [moduleRecord("better-auth", { patches: [failed], intentions })] },
+      modules: { auth: [moduleRecord("fixture-auth", { patches: [failed], intentions })] },
     }));
     return root;
   }
@@ -574,7 +574,7 @@ describe("runDoctor: a failed patch that became a pending intention (060 Degrada
     const { intention: _intention, ...legacy } = failed;
     await editManifest(root, (m) => ({
       ...m,
-      modules: { auth: [moduleRecord("better-auth", { patches: [legacy] })] },
+      modules: { auth: [moduleRecord("fixture-auth", { patches: [legacy] })] },
     }));
 
     const report = await runDoctor(root);
@@ -591,7 +591,7 @@ describe("runDoctor: patches", () => {
       ...m,
       modules: {
         auth: [
-          moduleRecord("better-auth", {
+          moduleRecord("fixture-auth", {
             patches: [
               { type: "ts.elysiaUse", file: "apps/api/src/app.ts", status: "applied" },
               { type: "scripts.merge", file: "package.json", status: "skipped" },
@@ -614,7 +614,7 @@ describe("runDoctor: patches", () => {
       severity: "warning",
       path: "apps/api/src/index.ts",
     });
-    expect(report.checks.patches.findings[0]?.message).toContain("auth/better-auth");
+    expect(report.checks.patches.findings[0]?.message).toContain("auth/fixture-auth");
     expect(report.checks.patches.findings[0]?.message).toContain("seam file not found");
     expect(report.checks.patches.details).toMatchObject({ applied: 1, skipped: 1, failed: 1 });
     expect(doctorExitCode(report, false)).toBe(0);
@@ -641,13 +641,13 @@ describe("runDoctor: intentions", () => {
 
   test("reads install intentions staged under .bg/add too, and ignores session.md", async () => {
     const root = await projectWithButton();
-    await stage(root, "add", "01-wire-auth-into-api.md", "auth/better-auth/wire-auth-into-api");
-    await writeFile(join(root, ".bg/add/session.md"), "# session\n- [ ] auth/better-auth/wire\n");
+    await stage(root, "add", "01-wire-auth-into-api.md", "auth/fixture-auth/wire-auth-into-api");
+    await writeFile(join(root, ".bg/add/session.md"), "# session\n- [ ] auth/fixture-auth/wire\n");
 
     const report = await runDoctor(root);
 
     expect(report.checks.intentions.details?.pending.map((p) => p.id)).toEqual([
-      "auth/better-auth/wire-auth-into-api",
+      "auth/fixture-auth/wire-auth-into-api",
     ]);
   });
 
@@ -655,7 +655,7 @@ describe("runDoctor: intentions", () => {
     const root = await projectWithButton();
     await stage(root, "upgrade", "00-align-bun-pin.md", "v0.2.0/align-bun-pin");
     await stage(root, "upgrade", "01-adopt-x.md", "v0.2.0/adopt-x");
-    await stage(root, "add", "01-wire-auth-into-api.md", "auth/better-auth/wire-auth-into-api");
+    await stage(root, "add", "01-wire-auth-into-api.md", "auth/fixture-auth/wire-auth-into-api");
     await editManifest(root, (m) => ({
       ...m,
       platform: {
@@ -667,8 +667,8 @@ describe("runDoctor: intentions", () => {
       },
       modules: {
         auth: [
-          moduleRecord("better-auth", {
-            intentions: { applied: ["auth/better-auth/wire-auth-into-api"], skipped: {} },
+          moduleRecord("fixture-auth", {
+            intentions: { applied: ["auth/fixture-auth/wire-auth-into-api"], skipped: {} },
           }),
         ],
       },
@@ -678,7 +678,7 @@ describe("runDoctor: intentions", () => {
 
     expect(report.checks.intentions.status).toBe("ok");
     expect(report.checks.intentions.details).toEqual({
-      applied: ["v0.2.0/align-bun-pin", "auth/better-auth/wire-auth-into-api"],
+      applied: ["v0.2.0/align-bun-pin", "auth/fixture-auth/wire-auth-into-api"],
       skipped: { "v0.2.0/adopt-x": "capability not installed" },
       pending: [],
     });

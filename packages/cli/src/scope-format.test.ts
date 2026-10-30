@@ -27,6 +27,7 @@ const SHARED_MODULES = [
   "api/elysia",
   "db/d1",
   "orm/drizzle",
+  "auth/better-auth",
   "web/spa",
   "web/ssr",
   "web/static",

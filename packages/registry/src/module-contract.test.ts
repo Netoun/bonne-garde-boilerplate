@@ -1737,6 +1737,238 @@ describe("module contract", () => {
     });
   });
 
+  describe("auth/better-auth is packages/auth, over the installed db and orm (035)", () => {
+    const AUTH = join(MODULES, "auth/better-auth/template");
+    const authText = (path: string): Promise<string> => readFile(join(AUTH, path), "utf8");
+    const authModule = async () => {
+      const catalog = await loadLocalRegistry(join(ROOT, "registry/registry.json"));
+      const found = catalog.modules.find(
+        ({ manifest }) => manifest.category === "auth" && manifest.id === "better-auth",
+      );
+      const [variant, ...others] = found?.manifest.variants ?? [];
+      if (!found || !variant) {
+        throw new Error("registry/modules/auth/better-auth is missing or has no variant");
+      }
+      return { catalog, manifest: found.manifest, variant, others };
+    };
+    /** Every source the module copies, with the comment lines dropped: a comment may quote an import. */
+    const sources = async (): Promise<[string, string][]> => {
+      const { variant } = await authModule();
+      const read: [string, string][] = [];
+      for (const path of variant.copy ?? []) {
+        if (/^packages\/auth\/src\/.+\.ts$/.test(path)) {
+          read.push([
+            path,
+            (await authText(path))
+              .split("\n")
+              .filter((line) => !/^\s*(?:\/\/|\/?\*)/.test(line))
+              .join("\n"),
+          ]);
+        }
+      }
+      return read;
+    };
+    const specifiers = (source: string): string[] =>
+      [...source.matchAll(/from\s+"([^"]+)"/g)].flatMap(([, specifier]) =>
+        specifier === undefined ? [] : [specifier],
+      );
+
+    test("one variant, the default, which owns the workspace `{{SCOPE}}/auth` at packages/auth", async () => {
+      const { manifest, variant, others } = await authModule();
+
+      expect(others).toEqual([]);
+      expect(variant.key).toBe("default");
+      expect(variant.match).toEqual({});
+      expect(variant.workspace).toEqual({ name: "{{SCOPE}}/auth", path: "packages/auth" });
+      // 035's example asks for `options.withOrg`; a variant cannot select files by an option, and the
+      // schema is generator output with the organization tables in it, so the module ships them always.
+      expect(manifest.options).toBeUndefined();
+    });
+
+    test("it peers on the provider, the api, the d1 db and the drizzle orm, and nothing else", async () => {
+      const { manifest } = await authModule();
+
+      expect(manifest.peers).toEqual({
+        provider: [],
+        api: [],
+        db: ["d1"],
+        orm: ["drizzle"],
+      });
+    });
+
+    test("a peer is declared exactly when a source reaches its package or file", async () => {
+      const { manifest, variant } = await authModule();
+      // Which module writes what auth imports: `readRuntimeEnv` is the provider's, `lib/*` the api's,
+      // `./d1` the db's, and the client, the barrel's `createDB` and `./testing` the orm's.
+      const peerOf = (specifier: string): string | null => {
+        if (specifier === "{{SCOPE}}/api-runtime") return "provider";
+        if (specifier.startsWith("{{SCOPE}}/api/")) return "api";
+        if (specifier === "{{SCOPE}}/db/d1") return "db";
+        if (specifier === "{{SCOPE}}/db" || specifier === "{{SCOPE}}/db/testing") return "orm";
+        return null;
+      };
+      const reached = new Set<string>();
+      const workspaces = new Set<string>();
+      for (const [, source] of await sources()) {
+        for (const specifier of specifiers(source)) {
+          const peer = peerOf(specifier);
+          if (peer !== null) reached.add(peer);
+          if (specifier.startsWith("{{SCOPE}}/") && !specifier.startsWith("{{SCOPE}}/auth")) {
+            workspaces.add(specifier.split("/").slice(0, 2).join("/"));
+          }
+        }
+      }
+
+      expect([...reached].sort()).toEqual(Object.keys(manifest.peers).sort());
+      // Each project package it imports is a workspace dependency, and nothing else is.
+      expect(
+        Object.entries(variant.dependencies ?? {})
+          .filter(([, range]) => range === "workspace:*")
+          .map(([name]) => name)
+          .sort(),
+      ).toEqual([...workspaces].sort());
+    });
+
+    test("every package the sources import is declared, and every dependency is imported", async () => {
+      const { variant } = await authModule();
+      const declared = new Set([
+        ...Object.keys(variant.dependencies ?? {}),
+        ...Object.keys(variant.devDependencies ?? {}),
+      ]);
+      const imported = new Set<string>();
+      for (const [path, source] of await sources()) {
+        for (const name of packagesImportedBy(source)) {
+          // `bun:test`, `bun:sqlite` and `node:*` are the runtime's; the project's own start with the scope.
+          if (name.includes(":") || name === "{{SCOPE}}/auth") continue;
+          imported.add(name);
+          expect([path, declared.has(name)]).toEqual([path, true]);
+        }
+      }
+
+      expect([...declared].filter((name) => !imported.has(name))).toEqual([]);
+    });
+
+    test("every dependency is an exact version, and the adapter is the one release of better-auth", async () => {
+      const { variant } = await authModule();
+
+      for (const [name, version] of Object.entries(variant.dependencies ?? {})) {
+        expect(`${name}@${version}`).toMatch(/^.+@(?:\d+\.\d+\.\d+|workspace:\*)$/);
+      }
+      // The two are released together; the CLI that generates the schema is pinned to the same one.
+      expect(variant.dependencies?.["@better-auth/drizzle-adapter"]).toBe(
+        variant.dependencies?.["better-auth"],
+      );
+      const pkg: unknown = JSON.parse(await authText("packages/auth/package.json"));
+      const generate = isRecord(pkg) && isRecord(pkg.scripts) ? pkg.scripts["auth:generate"] : "";
+      expect(generate).toContain(`bunx auth@${variant.dependencies?.["better-auth"]} generate`);
+    });
+
+    test("it writes only inside packages/auth, from explicit paths that exist", async () => {
+      const { variant } = await authModule();
+
+      expect(variant.copy?.filter((path) => !path.startsWith("packages/auth/"))).toEqual([]);
+      expect(variant.copy?.filter((path) => /[*?[\]{}]/.test(path))).toEqual([]);
+      const shipped = (
+        await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: AUTH, dot: true, onlyFiles: true }))
+      ).sort();
+      expect([...(variant.copy ?? [])].sort()).toEqual(shipped);
+      expect(variant.patch).toBeUndefined();
+    });
+
+    test("package.json carries exports and scripts and no dependency map, and each export is a file it ships", async () => {
+      const body: unknown = JSON.parse(await authText("packages/auth/package.json"));
+      const record = isRecord(body) ? body : {};
+      const scripts = isRecord(record.scripts) ? record.scripts : {};
+      const exported = isRecord(record.exports) ? record.exports : {};
+
+      expect(record.name).toBe("{{SCOPE}}/auth");
+      expect(typeof scripts.typecheck).toBe("string");
+      expect(scripts.test).toBe("bun test");
+      for (const map of ["dependencies", "devDependencies", "peerDependencies"]) {
+        expect(map in record ? map : null).toBeNull();
+      }
+      expect(Object.keys(exported).sort()).toEqual([".", "./client", "./schema", "./testing"]);
+      for (const target of Object.values(exported)) {
+        expect(existsSync(join(AUTH, "packages/auth", String(target)))).toBe(true);
+      }
+    });
+
+    test("the schema is what auth:generate writes: nothing hand-edited, nothing else in the file", async () => {
+      const schema = await authText("packages/auth/src/schema.ts");
+
+      // The legacy file keeps one hand edit, `organization.slug`'s uniqueIndex; the generator emits
+      // `.unique()`, and the module ships what the generator emits.
+      expect(schema).not.toContain("uniqueIndex");
+      expect(schema).toContain('slug: text("slug").notNull().unique()');
+      for (const table of [
+        "user",
+        "session",
+        "account",
+        "verification",
+        "organization",
+        "member",
+        "invitation",
+      ]) {
+        expect(schema).toContain(`export const ${table} = sqliteTable(`);
+      }
+      // Golden regenerates it with the pinned CLI and compares: this is only the cheap half.
+    });
+
+    test("BETTER_AUTH_SECRET is its env key, and the only one", async () => {
+      const { variant } = await authModule();
+
+      expect(variant.env).toEqual([{ name: "BETTER_AUTH_SECRET", required: true, example: "" }]);
+    });
+
+    test("the installed peers pick the variant, and a missing peer is named before anything is written", async () => {
+      const { catalog } = await authModule();
+      const project = createEmptyProjectManifest({ scope: "@app", registries: {} });
+      const stack = [
+        { category: "provider", id: "cloudflare" },
+        { category: "config", id: "branding" },
+        { category: "api", id: "elysia" },
+        { category: "db", id: "d1" },
+        { category: "orm", id: "drizzle" },
+      ];
+
+      const plans = await resolveModulePlans(
+        catalog,
+        [...stack, { category: "auth", id: "better-auth" }],
+        project,
+      );
+      expect(plans.map(({ key, variant }) => `${key}:${variant}`)).toContain(
+        "auth/better-auth:default",
+      );
+
+      // 035 acceptance: without an orm, the error names the category and its allow-list.
+      await expect(
+        resolveModulePlans(
+          catalog,
+          [
+            ...stack.filter(({ category }) => category !== "orm"),
+            { category: "auth", id: "better-auth" },
+          ],
+          project,
+        ),
+      ).rejects.toThrow(
+        /auth\/better-auth needs a module in category orm \(drizzle\) and none is installed/,
+      );
+      await expect(
+        resolveModulePlans(
+          catalog,
+          [
+            ...stack.filter(({ category }) => category !== "provider"),
+            { category: "provider", id: "dockerfile" },
+            { category: "auth", id: "better-auth" },
+          ],
+          project,
+        ),
+      ).rejects.toThrow(
+        /db\/d1 accepts only cloudflare for provider, but provider\/dockerfile is present/,
+      );
+    });
+  });
+
   test("an env key belongs to the one module that reads it: no two categories declare the same key (035, 060)", async () => {
     const catalog = await loadLocalRegistry(join(ROOT, "registry/registry.json"));
     const declaredBy = new Map<string, Set<string>>();

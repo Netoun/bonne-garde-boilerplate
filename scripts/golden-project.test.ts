@@ -17,12 +17,16 @@ import {
   expectMigrated,
   expectNothingToApply,
   expectPatches,
+  expectPeerRefusal,
   expectRefusal,
+  expectRegenerated,
   expectRegionsRecorded,
   expectServed,
   GOLDEN_BARREL_LINE,
   GOLDEN_TABLE,
+  hasAuth,
   hasDatabase,
+  WITHOUT_ORM,
   MODULES,
   PATCHED,
   publishedPort,
@@ -200,6 +204,7 @@ describe("the golden project and modules", () => {
       "api/elysia",
       "db/d1",
       "orm/drizzle",
+      "auth/better-auth",
       "web/spa",
       "web/ssr",
       "web/static",
@@ -836,5 +841,74 @@ describe("testCounts", () => {
     ].join("\n");
 
     expect(testCounts(output)).toEqual({ "@app/config": 6, "@app/db": 12, "@app/ssr": 4 });
+  });
+});
+
+describe("the auth phases", () => {
+  test("a configuration generates the auth schema again when it installs the auth module, and only the cloudflare one does", () => {
+    expect(hasAuth({ name: "a", modules: ["api/elysia", "auth/better-auth"], items: false })).toBe(
+      true,
+    );
+    expect(hasAuth({ name: "b", modules: ["api/elysia", "orm/drizzle"], items: false })).toBe(
+      false,
+    );
+    expect(CONFIGURATIONS.filter(hasAuth).map(({ name }) => name)).toEqual(["cloudflare"]);
+  });
+
+  test("auth is installed after the db and the orm it peers on", () => {
+    const modules = CONFIGURATIONS.find(({ name }) => name === "cloudflare")?.modules ?? [];
+
+    expect(modules.indexOf("auth/better-auth")).toBeGreaterThan(modules.indexOf("orm/drizzle"));
+  });
+
+  describe("expectRegenerated", () => {
+    const shipped = 'export const user = sqliteTable("user", {});\n';
+
+    test("passes when the generator writes the shipped file again", () => {
+      expect(() => expectRegenerated(shipped, shipped)).not.toThrow();
+    });
+
+    test("fails on the first line that differs, naming both: a hand edit the generator drops", () => {
+      const edited = `${shipped}export const organizationSlug = uniqueIndex("organization_slug_uidx");\n`;
+
+      expect(() => expectRegenerated(edited, shipped)).toThrow(
+        /from line 2.*organization_slug_uidx/s,
+      );
+    });
+
+    test("fails when the generated file is shorter or longer, with no line to name", () => {
+      expect(() => expectRegenerated(shipped, `${shipped}export const extra = 1;\n`)).toThrow(
+        /from line 2/,
+      );
+      expect(() => expectRegenerated(`${shipped}export const extra = 1;\n`, shipped)).toThrow(
+        /from line 2/,
+      );
+    });
+  });
+
+  describe("expectPeerRefusal (035: a missing orm is named)", () => {
+    const stderr =
+      "auth/better-auth needs a module in category orm (drizzle) and none is installed\n";
+
+    test("passes when the add failed and the message names the missing category", () => {
+      expect(() => expectPeerRefusal({ code: 1, stderr }, "better-auth", "orm")).not.toThrow();
+    });
+
+    test("fails when the add succeeded", () => {
+      expect(() => expectPeerRefusal({ code: 0, stderr: "" }, "better-auth", "orm")).toThrow(
+        /succeeded/,
+      );
+    });
+
+    test("fails when it was refused for another reason, and says what it printed", () => {
+      expect(() =>
+        expectPeerRefusal({ code: 1, stderr: "unknown name: better-auth\n" }, "better-auth", "orm"),
+      ).toThrow(/category orm.*unknown name/s);
+    });
+  });
+
+  test("the project the refusal runs in has every peer of auth but the orm", () => {
+    expect(WITHOUT_ORM).toEqual(["provider/cloudflare", "config/branding", "api/elysia", "db/d1"]);
+    expect(WITHOUT_ORM).not.toContain("orm/drizzle");
   });
 });

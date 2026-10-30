@@ -8,6 +8,8 @@
  *   → typecheck → test → build → bg doctor --strict
  *   → for a configuration with a database: a table added to the schema barrel, `bun run db:generate`,
  *     the migration applied to a local D1 (`wrangler`, no network, no account), and what D1 holds read back
+ *   → for a configuration with auth: `bun run auth:generate` again, which has to write the schema the
+ *     module ships byte for byte (it is generator output, not a hand-edited file)
  *   → bun run check → the `checks` of every installed module
  *   → for the configuration that ships a Dockerfile, docker build, docker run, and the container's answers
  *
@@ -113,6 +115,7 @@ export const CONFIGURATIONS: readonly Configuration[] = [
       "api/elysia",
       "db/d1",
       "orm/drizzle",
+      "auth/better-auth",
       "web/spa",
       "web/ssr",
       "web/static",
@@ -147,6 +150,58 @@ const ORM_MODULE = "orm/drizzle";
 /** Whether the configuration has an `orm`, so golden adds a table, generates its migration and applies it to a local D1. */
 export function hasDatabase(configuration: Configuration): boolean {
   return configuration.modules.includes(ORM_MODULE);
+}
+
+/** The module whose schema is what `auth:generate` writes, and the file that holds it. */
+const AUTH_MODULE = "auth/better-auth";
+export const AUTH_SCHEMA_FILE = "packages/auth/src/schema.ts";
+
+/** Whether the configuration has auth, so golden generates its schema again and compares. */
+export function hasAuth(configuration: Configuration): boolean {
+  return configuration.modules.includes(AUTH_MODULE);
+}
+
+/**
+ * The schema `auth:generate` writes has to be the one the module ships. The legacy file kept a hand
+ * edit the generator would drop on its next run, so this is what says the module has none.
+ */
+export function expectRegenerated(shipped: string, regenerated: string): void {
+  if (regenerated === shipped) {
+    return;
+  }
+  const was = shipped.split("\n");
+  const now = regenerated.split("\n");
+  const line = was.findIndex((text, index) => text !== now[index]);
+  const at = line === -1 ? Math.min(was.length, now.length) : line;
+  throw new Error(
+    `\`bun run auth:generate\` wrote a ${AUTH_SCHEMA_FILE} that differs from the shipped one, from line ${at + 1}: ` +
+      `shipped \`${was[at] ?? "(end of file)"}\`, generated \`${now[at] ?? "(end of file)"}\``,
+  );
+}
+
+/**
+ * What a project needs for `auth/better-auth` but its ORM. Adding auth to it is refused, and the
+ * message names the missing peer's category (035 and 050 acceptance), before anything is written.
+ */
+export const WITHOUT_ORM: readonly string[] = [
+  "provider/cloudflare",
+  "config/branding",
+  "api/elysia",
+  "db/d1",
+];
+
+/** `bg add <name>` failed and named `category` as the peer it needs: what an agent reads to fix it. */
+export function expectPeerRefusal(attempt: Attempt, name: string, category: string): void {
+  if (attempt.code === 0) {
+    throw new Error(
+      `\`bg add ${name}\` succeeded in a project with no ${category} module: it must be refused`,
+    );
+  }
+  if (!attempt.stderr.includes(`category ${category}`)) {
+    throw new Error(
+      `\`bg add ${name}\` was refused without naming the missing peer category ${category}; it printed: ${attempt.stderr.trim() || "(nothing)"}`,
+    );
+  }
 }
 
 /**
@@ -844,6 +899,9 @@ async function configured(
       }
     });
   }
+  if (first && hasAuth(configuration)) {
+    await refusedPeer(work, timings, bg, registry);
+  }
   const added = await step("add", async () => {
     const stdout = await capture(bg(...addArguments(modules, installed)), project);
     process.stdout.write(stdout);
@@ -890,6 +948,9 @@ async function configured(
   });
   await step("build", () => run([BUN, "run", "build"], project));
   await step("doctor", () => run(bg("doctor", "--strict"), project));
+  if (hasAuth(configuration)) {
+    await regenerated(project, timings, name);
+  }
   if (hasDatabase(configuration)) {
     await migrated(project, timings, name);
   }
@@ -904,6 +965,67 @@ async function configured(
   if (buildsImage(configuration)) {
     await imaged(project, timings, name);
   }
+}
+
+/**
+ * 035 and 050 acceptance: `bg add better-auth` in a project that has everything but an `orm` fails,
+ * names the missing peer's category, and writes nothing. It needs a project of its own, because the
+ * configuration under test has the ORM, and runs before the `add` of that one.
+ */
+async function refusedPeer(
+  work: string,
+  timings: Timing[],
+  bg: (...args: string[]) => string[],
+  registry: string,
+): Promise<void> {
+  const project = join(work, "golden-peer");
+  await phase(timings, "peer: create", () =>
+    run(
+      bg(
+        "create",
+        project,
+        "--yes",
+        "--no-git",
+        "--no-install",
+        "--scope",
+        SCOPE,
+        "--registry",
+        registry,
+      ),
+      work,
+    ),
+  );
+  await phase(timings, "peer: add the modules but the orm", () =>
+    run(bg("add", ...WITHOUT_ORM, "--yes", "--no-install"), project),
+  );
+  await phase(timings, "peer: refuse", async () => {
+    const before = await snapshot(project);
+    expectPeerRefusal(
+      await attempt(bg("add", "better-auth", "--yes", "--no-install"), project),
+      "better-auth",
+      "orm",
+    );
+    const changed = diffTrees(before, await snapshot(project));
+    if (changed.length > 0) {
+      throw new Error(
+        `the refused \`bg add better-auth\` changed the project: ${changed.join(", ")}`,
+      );
+    }
+  });
+}
+
+/**
+ * `bun run auth:generate` in the project, which runs the pinned Better Auth CLI on node and the
+ * formatter, has to write the schema the module shipped: byte for byte, or the module carries an edit
+ * the next regeneration would drop.
+ */
+async function regenerated(project: string, timings: Timing[], name: string): Promise<void> {
+  await phase(timings, `${name}: auth generate`, async () => {
+    const file = join(project, AUTH_SCHEMA_FILE);
+    const shipped = await Bun.file(file).text();
+    await run([BUN, "run", "auth:generate"], join(project, "packages/auth"));
+    expectRegenerated(shipped, await Bun.file(file).text());
+  });
 }
 
 /**
