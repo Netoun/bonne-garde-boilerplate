@@ -34,19 +34,19 @@ member and invitation tables in it, and `storage`'s `medias` table has foreign k
 
 Everything in `packages/auth`, from explicit paths:
 
-| File                 | What it is                                                                                            |
-| -------------------- | ----------------------------------------------------------------------------------------------------- |
-| `package.json`       | `{{SCOPE}}/auth`: the `.`, `./client`, `./schema` and `./testing` exports, the scripts below          |
-| `src/auth.config.ts` | `createAuth(options)`: the Better Auth instance, with no environment read and nothing built at import |
-| `src/auth.module.ts` | `authModule` (the handler mounted on the app) and `authMacro` (`{ auth: true }` on a route)           |
-| `src/schema.ts`      | the Drizzle tables and relations, **generator output** (see below)                                    |
-| `src/env.ts`         | `resolveAuthEnv`: `BETTER_AUTH_SECRET`, read from `readRuntimeEnv()`                                  |
-| `src/mailer.ts`      | `AuthMailer`, and the `mailer` an `email` module replaces                                             |
-| `src/password.ts`    | scrypt `hashPassword` / `verifyPassword`, shared with the seed                                        |
-| `src/client.ts`      | what a front imports: `type Auth` and `AUTH_BASE_PATH`                                                |
-| `src/auth.cli.ts`    | the entry `auth:generate` loads                                                                       |
-| `src/testing.ts`     | `createTestAuth()`: an instance over real in-memory SQLite, for this package's tests and others'      |
-| `src/*.test.ts`      | the tests that travel, and the new ones, all against real SQLite: no mock of Drizzle or `fetch`       |
+| File                                | What it is                                                                                            |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `package.json`                      | `{{SCOPE}}/auth`: the `.`, `./client`, `./schema` and `./testing` exports, the scripts below          |
+| `src/auth.config.ts`                | `createAuth(options)`: the Better Auth instance, with no environment read and nothing built at import |
+| `src/auth.module.ts`                | `authModule` (the handler mounted on the app) and `authMacro` (`{ auth: true }` on a route)           |
+| `src/schema.ts`                     | the Drizzle tables and relations, **generator output** (see below)                                    |
+| `src/env.ts`                        | `resolveAuthEnv`: `BETTER_AUTH_SECRET`, read from `readRuntimeEnv()`                                  |
+| `src/mailer.ts`                     | `AuthMailer`, and the `mailer` an `email` module replaces                                             |
+| `src/password.ts`                   | scrypt `hashPassword` / `verifyPassword`, shared with the seed                                        |
+| `src/client.ts`, `src/base-path.ts` | what a front imports: `type Auth` and `AUTH_BASE_PATH`, with no server code                           |
+| `src/auth.cli.ts`                   | the entry `auth:generate` loads                                                                       |
+| `src/testing.ts`                    | `createTestAuth()`: an instance over real in-memory SQLite, for this package's tests and others'      |
+| `src/*.test.ts`                     | the tests that travel, and the new ones, all against real SQLite: no mock of Drizzle or `fetch`       |
 
 Dependencies are exact: `better-auth` and `@better-auth/drizzle-adapter` at the same release (a
 contract test pins that, and the CLI the scripts run), `drizzle-orm`, `elysia`, and the project's
@@ -92,6 +92,21 @@ project with no email module cannot sign in** until one is wired in; the seeded 
 
 The `email` module replaces the `mailer` value with an adapter over its own package, through the
 intention it ships (spec 065): auth owns the interface, never the reverse.
+
+## Where it is served
+
+Under `/api/auth`, Better Auth's own default, and not the legacy `/auth`. The SPA has pages at
+`/auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/reset-password` and
+`/auth/verify-email`, and the links in the emails open them. With the `dockerfile` provider the SPA and
+the API share an origin, and an API at `/auth` answered `GET /auth/verify-email?token=…` with JSON
+(401) instead of the page. The API is what moves, because the pages are what users and emails already
+point at, and the move costs the fronts one line: `createAuthClient({ baseURL, basePath: AUTH_BASE_PATH })`
+from `{{SCOPE}}/auth/client`, or no `basePath` at all, since it is the client's default too. A request
+the API does not know, `/auth/*` included, is a 404, which is what the dockerfile runtime answers with
+the SPA's `index.html` for a browser navigation. `auth.flow.test.ts` pins both halves.
+
+The legacy `apps/spa` still talks to the legacy `apps/api` at `/auth`; the front's `lib/auth.ts` moves
+with the feature items (09, stage 6) and takes `AUTH_BASE_PATH` then.
 
 ## Rate limit and the client's address
 

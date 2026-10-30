@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { config } from "{{SCOPE}}/api/lib/app.config";
 import { authPlugin } from "./auth.module";
 import { member, organization, session, user } from "./schema";
+import { AUTH_BASE_PATH } from "./client";
 import { TEST_API_URL, TEST_APP_URL, createTestAuth } from "./testing";
 
 const PASSWORD = "correct horse battery staple";
@@ -143,5 +144,42 @@ describe("the auth plugin on an Elysia app", () => {
     expect(allowed.headers.get("access-control-allow-origin")).toBe(config.SPA_URL);
     expect(allowed.headers.get("access-control-allow-credentials")).toBe("true");
     expect(refused.headers.get("access-control-allow-origin")).toBeNull();
+  });
+});
+
+// The `dockerfile` provider serves the SPA and the API from one origin, and the SPA has pages at
+// `/auth/login`, `/auth/verify-email` and the like: the links in the emails open them. Better Auth
+// served its API at `/auth` too, so on that origin a link to the SPA's verify page reached the API,
+// which answered it with JSON instead of the page.
+describe("where auth is served", () => {
+  const spaPages = [
+    "/auth/login",
+    "/auth/register",
+    "/auth/forgot-password",
+    "/auth/reset-password?token=t",
+    "/auth/verify-email?token=t",
+  ];
+
+  it("serves the API under /api/auth, which the client reaches by AUTH_BASE_PATH", async () => {
+    const { auth, db } = await createTestAuth();
+    const app = new Elysia().use(authPlugin(async () => ({ auth, db })));
+
+    const response = await app.handle(new Request(`${TEST_API_URL}${AUTH_BASE_PATH}/get-session`));
+
+    expect(AUTH_BASE_PATH).toBe("/api/auth");
+    expect(response.status).toBe(200);
+  });
+
+  it("leaves the front-end's /auth/* pages to the SPA: a 404 is what its fallback answers with the page", async () => {
+    const { auth, db } = await createTestAuth();
+    const app = new Elysia().use(authPlugin(async () => ({ auth, db })));
+
+    for (const page of spaPages) {
+      const response = await app.handle(
+        new Request(`${TEST_API_URL}${page}`, { headers: { accept: "text/html" } }),
+      );
+
+      expect([page, response.status]).toEqual([page, 404]);
+    }
   });
 });

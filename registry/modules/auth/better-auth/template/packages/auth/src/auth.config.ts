@@ -3,6 +3,7 @@ import { organization } from "better-auth/plugins";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { and, eq, isNull } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import { AUTH_BASE_PATH } from "./base-path";
 import type { AuthMailer } from "./mailer";
 import { hashPassword, verifyPassword } from "./password";
 import * as schema from "./schema";
@@ -69,7 +70,7 @@ export function createAuth({
     }),
     secret,
     baseURL,
-    basePath: "/auth",
+    basePath: AUTH_BASE_PATH,
     trustedOrigins,
     // Explicit on purpose: every value below equals Better Auth's production default for this
     // baseURL, written out so that a default change upstream cannot weaken auth silently.
