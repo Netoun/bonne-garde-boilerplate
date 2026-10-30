@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { organization } from "better-auth/plugins";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { and, eq, isNull } from "drizzle-orm";
@@ -237,6 +238,46 @@ export function createAuth({
           },
         },
       },
+    },
+    hooks: {
+      // `organization.deletedAt` is the app's soft delete, and Better Auth's organization endpoints do
+      // not know it. Making a deleted organization the active one is refused before it changes the
+      // session; fetching it, and listing it, are filtered after.
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/organization/set-active") return;
+        const { organizationId, organizationSlug } = ctx.body ?? {};
+        const where =
+          typeof organizationId === "string"
+            ? { field: "id", value: organizationId }
+            : typeof organizationSlug === "string"
+              ? { field: "slug", value: organizationSlug }
+              : null;
+        if (where === null) return;
+        const found = await ctx.context.adapter.findOne<{ deletedAt: Date | null }>({
+          model: "organization",
+          where: [where],
+        });
+        if (found?.deletedAt) {
+          throw new APIError("NOT_FOUND", { message: "Organization not found" });
+        }
+      }),
+      after: createAuthMiddleware(async (ctx) => {
+        const returned = ctx.context.returned;
+        if (ctx.path === "/organization/list" && Array.isArray(returned)) {
+          return ctx.json(
+            returned.filter((entry: { deletedAt?: Date | null }) => !entry.deletedAt),
+          );
+        }
+        if (
+          ctx.path === "/organization/get-full-organization" &&
+          typeof returned === "object" &&
+          returned !== null &&
+          "deletedAt" in returned &&
+          returned.deletedAt
+        ) {
+          throw new APIError("NOT_FOUND", { message: "Organization not found" });
+        }
+      }),
     },
     // Rate limiting — default storage is in-memory (per-isolate on Workers).
     // Can be moved to secondary storage (e.g. KV) later for cross-isolate consistency.

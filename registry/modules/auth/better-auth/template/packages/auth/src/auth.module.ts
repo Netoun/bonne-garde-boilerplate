@@ -43,9 +43,19 @@ export function authMacroPlugin(resolveAuth: ResolveAuth) {
 
         const { user, session } = authSession;
 
-        // If no active organization is set, try to get the first one as default
+        // The active organization the session holds, unless it was marked deleted since: it scopes what
+        // a route reads, and a deleted organization's data is not for its members to reach.
         let activeOrganizationId = session.activeOrganizationId;
+        if (activeOrganizationId) {
+          const [live] = await db
+            .select({ id: organization.id })
+            .from(organization)
+            .where(and(eq(organization.id, activeOrganizationId), isNull(organization.deletedAt)))
+            .limit(1);
+          if (live === undefined) activeOrganizationId = null;
+        }
 
+        // If there is none, try to get the first one as default
         if (!activeOrganizationId) {
           // Query DB for user's first organization
           const userOrg = await db
@@ -59,13 +69,13 @@ export function authMacroPlugin(resolveAuth: ResolveAuth) {
 
           if (userOrg.length > 0 && userOrg[0]?.orgId) {
             activeOrganizationId = userOrg[0].orgId;
-
-            // Update session in DB with active organization
-            await db
-              .update(sessionTable)
-              .set({ activeOrganizationId })
-              .where(eq(sessionTable.id, session.id));
           }
+
+          // Keep what was resolved in the session, so the next request starts from it
+          await db
+            .update(sessionTable)
+            .set({ activeOrganizationId })
+            .where(eq(sessionTable.id, session.id));
         }
 
         // Return enriched session with activeOrganizationId

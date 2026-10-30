@@ -108,6 +108,24 @@ the SPA's `index.html` for a browser navigation. `auth.flow.test.ts` pins both h
 The legacy `apps/spa` still talks to the legacy `apps/api` at `/auth`; the front's `lib/auth.ts` moves
 with the feature items (09, stage 6) and takes `AUTH_BASE_PATH` then.
 
+## Organizations marked deleted
+
+`organization.deletedAt` is the soft delete: server-side only (`input: false`), read by the macro and the
+session hook, written by nothing in this module. Better Auth's organization endpoints do not know it.
+Observed on real SQLite, an organization with `deletedAt` set was still returned by `organization/list`,
+fetched with its members by `get-full-organization` (by id, by slug, or as the active one), and accepted
+by `set-active`, which scopes what a route reads. Now `list` drops it, `get-full-organization` and
+`set-active` answer 404 (`set-active` before it touches the session), and the `auth: true` macro treats a
+session whose active organization was deleted since as having none: it falls back to the user's first live
+one and keeps that in the session (one primary-key read per authenticated request). `auth.organization.test.ts`
+pins each. The hooks match on Better Auth's paths, as the rate-limit rules do; the tests are what notice a
+rename.
+
+**Not changed: `organization/delete` hard-deletes.** It removes the row, and the members with it (foreign
+key cascade), for any owner who calls it. The legacy SPA never calls it, and nothing in the repo writes
+`deletedAt`, so which of the two is the product's delete is not decided here. `disableOrganizationDeletion`
+would close it; it is a behaviour change and waits for whoever writes `deletedAt`.
+
 ## Rate limit and the client's address
 
 Better Auth limits by client address and, told nothing, reads `x-forwarded-for` alone. Workers do not
