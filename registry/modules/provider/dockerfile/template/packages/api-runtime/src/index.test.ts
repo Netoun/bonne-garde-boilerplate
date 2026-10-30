@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readRuntimeEnv, runtimeOptions, serve } from "./index";
+import { clientIpHeaders, readRuntimeEnv, runtimeOptions, serve } from "./index";
 
 let dir: string;
 
@@ -281,5 +281,98 @@ describe("serve", () => {
 
     expect(response.status).toBe(404);
     expect(await response.text()).toBe("api: not found");
+  });
+});
+
+describe("the client's address", () => {
+  /** Stands in for the app: answers with the address the runtime stamped on the request. */
+  const echo = {
+    fetch: (request: Request) => Response.json({ ip: request.headers.get("x-client-ip") }),
+  };
+  /** What Bun hands `fetch` as its second argument: the server, which knows the socket's peer. */
+  const peer = (address: string | null) => ({
+    requestIP: () => (address === null ? null : { address, family: "IPv4", port: 40000 }),
+  });
+  const addressOf = async (response: Response) => ((await response.json()) as { ip: unknown }).ip;
+  const spaDir = () => join(dir, "no-spa");
+
+  it("names x-client-ip, the header serve fills, as the one the rate limit reads", () => {
+    expect(clientIpHeaders).toEqual(["x-client-ip"]);
+  });
+
+  it("stamps the address of the socket on the request the app sees", async () => {
+    const response = await serve(echo, { spaDir: spaDir() }).fetch(
+      new Request("http://localhost/who"),
+      peer("203.0.113.7"),
+    );
+
+    expect(await addressOf(response)).toBe("203.0.113.7");
+  });
+
+  it("drops an x-client-ip a client sent: the header is the runtime's, whoever it claims to be", async () => {
+    const forged = new Request("http://localhost/who", {
+      headers: { "x-client-ip": "198.51.100.1" },
+    });
+
+    const withSocket = await serve(echo, { spaDir: spaDir() }).fetch(forged, peer("203.0.113.7"));
+    const withoutSocket = await serve(echo, { spaDir: spaDir() }).fetch(forged);
+
+    expect(await addressOf(withSocket)).toBe("203.0.113.7");
+    expect(await addressOf(withoutSocket)).toBeNull();
+  });
+
+  it("does not trust x-forwarded-for: with the port published, any client can send it", async () => {
+    const forged = new Request("http://localhost/who", {
+      headers: { "x-forwarded-for": "198.51.100.1" },
+    });
+
+    const response = await serve(echo, { spaDir: spaDir() }).fetch(forged, peer("203.0.113.7"));
+
+    expect(await addressOf(response)).toBe("203.0.113.7");
+  });
+
+  it("takes the address from the header the operator names, last entry, when a proxy sits in front", async () => {
+    // The proxy appends what it saw to what the client sent, so only the last entry is its own.
+    const behindProxy = new Request("http://localhost/who", {
+      headers: { "x-forwarded-for": "198.51.100.1, 203.0.113.9" },
+    });
+
+    const response = await serve(echo, {
+      spaDir: spaDir(),
+      trustedProxyHeader: "x-forwarded-for",
+    }).fetch(behindProxy, peer("172.18.0.1"));
+
+    expect(await addressOf(response)).toBe("203.0.113.9");
+  });
+
+  it("falls back to the socket when the named header is absent, and reads TRUSTED_PROXY_HEADER by default", async () => {
+    const previous = process.env.TRUSTED_PROXY_HEADER;
+    try {
+      process.env.TRUSTED_PROXY_HEADER = "x-real-ip";
+      const server = serve(echo, { spaDir: spaDir() });
+
+      const named = await server.fetch(
+        new Request("http://localhost/who", { headers: { "x-real-ip": "203.0.113.9" } }),
+        peer("172.18.0.1"),
+      );
+      const absent = await server.fetch(new Request("http://localhost/who"), peer("172.18.0.1"));
+
+      expect(await addressOf(named)).toBe("203.0.113.9");
+      expect(await addressOf(absent)).toBe("172.18.0.1");
+    } finally {
+      if (previous === undefined) delete process.env.TRUSTED_PROXY_HEADER;
+      else process.env.TRUSTED_PROXY_HEADER = previous;
+    }
+  });
+
+  it("keeps the body of a write, which stamping the header must not consume", async () => {
+    const reader = { fetch: async (request: Request) => new Response(await request.text()) };
+
+    const response = await serve(reader, { spaDir: spaDir() }).fetch(
+      new Request("http://localhost/echo", { method: "POST", body: "hello" }),
+      peer("203.0.113.7"),
+    );
+
+    expect(await response.text()).toBe("hello");
   });
 });

@@ -5,21 +5,13 @@
   "version": "0.1.0",
   "title": "Better Auth",
   "description": "Session auth with email and password, email verification and organizations, over the installed database.",
-  "peers": {
-    "provider": [],
-    "api": [],
-    "db": ["d1"],
-    "orm": ["drizzle"]
-  },
+  "peers": { "provider": [], "api": [], "db": ["d1"], "orm": ["drizzle"] },
   "checks": ["cd packages/auth && bun run typecheck && bun run test"],
   "variants": [
     {
       "key": "default",
       "match": {},
-      "workspace": {
-        "name": "{{SCOPE}}/auth",
-        "path": "packages/auth"
-      },
+      "workspace": { "name": "{{SCOPE}}/auth", "path": "packages/auth" },
       "dependencies": {
         "@better-auth/drizzle-adapter": "1.6.26",
         "better-auth": "1.6.26",
@@ -37,6 +29,7 @@
         "packages/auth/src/auth.config.ts",
         "packages/auth/src/auth.flow.test.ts",
         "packages/auth/src/auth.module.ts",
+        "packages/auth/src/auth.rate-limit.test.ts",
         "packages/auth/src/auth.schema.test.ts",
         "packages/auth/src/client.ts",
         "packages/auth/src/env.test.ts",
@@ -52,13 +45,7 @@
         "packages/auth/tsconfig.json",
         "packages/auth/tsconfig.test.json"
       ],
-      "env": [
-        {
-          "name": "BETTER_AUTH_SECRET",
-          "required": true,
-          "example": ""
-        }
-      ]
+      "env": [{ "name": "BETTER_AUTH_SECRET", "required": true, "example": "" }]
     }
   ]
 }

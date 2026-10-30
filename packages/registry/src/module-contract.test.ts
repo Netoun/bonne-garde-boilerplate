@@ -181,13 +181,13 @@ describe("module contract", () => {
       }
     });
 
-    test("each index.ts exports the three names `api` imports, whatever the provider", async () => {
+    test("each index.ts exports the four names `api` and the modules import, whatever the provider", async () => {
       for (const { manifest, dir } of await providers()) {
         const source = await readFile(
           join(dir, "template/packages/api-runtime/src/index.ts"),
           "utf8",
         );
-        for (const name of ["runtimeOptions", "readRuntimeEnv", "serve"]) {
+        for (const name of ["runtimeOptions", "readRuntimeEnv", "clientIpHeaders", "serve"]) {
           expect(`${manifest.id}: ${source}`).toMatch(
             new RegExp(`export (?:const|async function|function) ${name}\\b`),
           );

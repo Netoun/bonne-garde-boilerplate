@@ -12,6 +12,10 @@ services:
       - app-data:/data
     environment:
       APP_URL: ${APP_URL:-http://localhost:5172}
+      # Name the header your reverse proxy overwrites with the client's address (x-forwarded-for) when
+      # one sits in front: every client shares the proxy's address without it. Leave it blank when the
+      # port is published to clients directly, where a client could set that header itself.
+      TRUSTED_PROXY_HEADER: ${TRUSTED_PROXY_HEADER:-}
       # Required by the API's config; `${VAR:?}` stops `compose up` with this message when unset.
       RESEND_API_KEY: ${RESEND_API_KEY:?set RESEND_API_KEY, the API refuses to start without it}
       # BETTER_AUTH_SECRET: generated into ${DATA_DIR}/secrets on first start when unset.

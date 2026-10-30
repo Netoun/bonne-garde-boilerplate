@@ -28,6 +28,11 @@ export type AuthOptions = {
   appURL: string;
   /** The origins allowed to call the API with credentials. */
   trustedOrigins: string[];
+  /**
+   * The request headers that carry the client's address, in the order they are read: the provider's
+   * `clientIpHeaders`. The rate limit keys its buckets on that address.
+   */
+  clientIpHeaders: readonly string[];
   mailer: AuthMailer;
   logger: AuthLogger;
 };
@@ -47,6 +52,7 @@ export function createAuth({
   baseURL,
   appURL,
   trustedOrigins,
+  clientIpHeaders,
   mailer,
   logger,
 }: AuthOptions) {
@@ -69,6 +75,9 @@ export function createAuth({
     // baseURL, written out so that a default change upstream cannot weaken auth silently.
     advanced: {
       useSecureCookies: secureCookies,
+      // Better Auth reads `x-forwarded-for` alone unless told otherwise, and Workers do not set it:
+      // every client would then share one rate-limit bucket. The provider says where the address is.
+      ipAddress: { ipAddressHeaders: [...clientIpHeaders] },
       disableCSRFCheck: false,
       // Better Auth turns the origin check off under NODE_ENV=test when this is unset.
       // Setting it keeps the tests running with the same protection as production.

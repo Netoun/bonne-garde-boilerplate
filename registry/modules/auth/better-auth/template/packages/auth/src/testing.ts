@@ -10,10 +10,12 @@ export const TEST_API_URL = "http://api.test";
 export const TEST_APP_URL = "http://spa.test";
 
 /**
- * The header the instance reads the client's address from, and so the one a test sets: Better Auth's
- * rate limit keys a bucket on it, and its memory store is shared by every instance in the process.
+ * The header a test instance reads the client's address from unless the test names another: it is
+ * what a provider's `clientIpHeaders` would give, and Better Auth's rate limit keys a bucket on it.
+ * Its memory store is shared by every instance in the process, so each instance gets an address of
+ * its own to start from.
  */
-export const TEST_CLIENT_IP_HEADER = "x-forwarded-for";
+export const TEST_CLIENT_IP_HEADER = "x-test-client-ip";
 
 let instances = 0;
 
@@ -26,7 +28,7 @@ export type SentEmail = AuthEmail & { kind: "verification" | "password_reset" };
  * database is the one D1 is, and the requests go through the handler the API mounts.
  */
 export async function createTestAuth(
-  overrides: Partial<Pick<AuthOptions, "mailer" | "trustedOrigins">> = {},
+  overrides: Partial<Pick<AuthOptions, "mailer" | "trustedOrigins" | "clientIpHeaders">> = {},
 ) {
   const db = await createTestDb(schema);
   // A client address of this instance's own, so that no test spends another's rate limit.
@@ -47,10 +49,13 @@ export async function createTestAuth(
     baseURL: TEST_API_URL,
     appURL: TEST_APP_URL,
     trustedOrigins: [TEST_APP_URL],
+    clientIpHeaders: [TEST_CLIENT_IP_HEADER],
     mailer,
     logger: { info() {}, warn() {}, error() {} },
     ...overrides,
   });
+  const clientIpHeader =
+    (overrides.clientIpHeaders ?? [TEST_CLIENT_IP_HEADER])[0] ?? TEST_CLIENT_IP_HEADER;
 
   /** A request to the auth handler, from the front-end's origin. */
   function call(
@@ -76,7 +81,7 @@ export async function createTestAuth(
         method,
         headers: {
           origin: TEST_APP_URL,
-          [TEST_CLIENT_IP_HEADER]: ip,
+          [clientIpHeader]: ip,
           ...(body === undefined ? {} : { "content-type": "application/json" }),
           ...(cookie === undefined ? {} : { cookie }),
           ...headers,

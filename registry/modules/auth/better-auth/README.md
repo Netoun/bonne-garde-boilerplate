@@ -93,6 +93,19 @@ project with no email module cannot sign in** until one is wired in; the seeded 
 The `email` module replaces the `mailer` value with an adapter over its own package, through the
 intention it ships (spec 065): auth owns the interface, never the reverse.
 
+## Rate limit and the client's address
+
+Better Auth limits by client address and, told nothing, reads `x-forwarded-for` alone. Workers do not
+set it, so every client fell into one bucket per path and sign-in was capped at ten a minute for all of
+them together. `createAuth` takes `clientIpHeaders`, and `auth.module.ts` passes the one the provider's
+`{{SCOPE}}/api-runtime` exports: `cf-connecting-ip` on `cloudflare`, which the edge sets and overwrites,
+and `x-client-ip` on `dockerfile`, which that runtime stamps from the socket (or from the proxy header the
+operator names), because with the port published `x-forwarded-for` is the client's to set. Auth names no
+provider. `auth.rate-limit.test.ts` pins it: one client is throttled, another is not, and a forged
+`x-forwarded-for` does not pick a bucket.
+
+The limits are Better Auth's memory store, per isolate on Workers.
+
 ## Not here
 
 - **Wiring into `apps/api` and the schema barrel.** The `.use(authModule)` in `apps/api/src/app.ts`,

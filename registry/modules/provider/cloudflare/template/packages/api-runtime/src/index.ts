@@ -6,6 +6,7 @@
  * The surface every variant exports:
  * - `runtimeOptions`: the constructor options of `new Elysia(...)` that differ per provider.
  * - `readRuntimeEnv()`: the environment record, read once by `apps/api`'s config.
+ * - `clientIpHeaders`: the request headers that carry the client's address, in the order to read them.
  * - `serve(app)`: what `apps/api/src/index.ts` default-exports. Workers want a `{ fetch }` object,
  *   so that is what this variant returns; the `dockerfile` variant returns `{ port, fetch }`, which
  *   Bun serves by itself when that file is the entry.
@@ -19,6 +20,13 @@ export const runtimeOptions: Pick<ElysiaConfig<"">, "adapter" | "aot"> = {
   // Workers forbid `new Function()`, which Elysia's ahead-of-time compiler relies on.
   aot: false,
 };
+
+/**
+ * Cloudflare's edge sets `cf-connecting-ip` to the client's address on every request that reaches a
+ * Worker, replacing a value the client sent. `x-forwarded-for`, which Better Auth reads by default,
+ * is not set on Workers, so a rate limit left to its default sees no client at all.
+ */
+export const clientIpHeaders: readonly string[] = ["cf-connecting-ip"];
 
 /**
  * `cloudflare:workers` is a specifier the Workers runtime provides, so a build for any other

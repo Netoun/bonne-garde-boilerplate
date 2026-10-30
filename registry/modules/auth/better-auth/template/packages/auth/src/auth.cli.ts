@@ -1,3 +1,4 @@
+import { clientIpHeaders } from "{{SCOPE}}/api-runtime";
 import { bindD1 } from "{{SCOPE}}/db/d1";
 import { createDB } from "{{SCOPE}}/db";
 import { createAuth } from "./auth.config";
@@ -17,6 +18,7 @@ export const auth = createAuth({
   baseURL: "http://localhost:5172",
   appURL: "http://localhost:5173",
   trustedOrigins: [],
+  clientIpHeaders,
   mailer,
   logger: { info() {}, warn() {}, error() {} },
 });

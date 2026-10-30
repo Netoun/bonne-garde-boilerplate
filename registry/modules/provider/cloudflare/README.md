@@ -31,9 +31,12 @@ imports for everything that depends on where it runs, and merges `RESEND_API_KEY
 - `runtimeOptions`: `{ adapter: CloudflareAdapter, aot: false }`.
 - `readRuntimeEnv()`: the `cloudflare:workers` environment, `process.env` where that specifier does
   not resolve (Bun and Node).
+- `clientIpHeaders`: `["cf-connecting-ip"]`. Cloudflare's edge sets it to the client's address on
+  every request that reaches a Worker and replaces a value the client sent; `x-forwarded-for`, which
+  Better Auth reads unless told otherwise, is not set on Workers.
 - `serve(app)`: a `{ fetch }` object, which is what Workers want a module to default-export.
 
-Its tests (`index.test.ts`, 6) travel with it and run from the project's root through `bun run test`.
+Its tests (`index.test.ts`, 7) travel with it and run from the project's root through `bun run test`.
 They import `elysia`, which this repo's root does not install, so `test:scripts` skips them and golden
 is where they run.
 It declares `elysia`, `@cloudflare/workers-types` and `@types/node`, pinned, in the workspace

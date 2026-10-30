@@ -29,20 +29,22 @@ The module owns the `packages/api-runtime` workspace whole: `package.json` (the 
 name, an `exports` map and the `typecheck` and `test` scripts; `elysia` is merged in from the
 variant), `tsconfig.json`, `src/index.ts` and `src/index.test.ts`. It is what `provider/cloudflare`
 writes at the same paths, so swapping providers swaps this package and leaves `apps/api` alone.
-`src/index.ts` exports the same three names `apps/api` imports, so `app.ts` and the entry stay as
-they are:
+`src/index.ts` exports the same four names `apps/api` and the modules import, so `app.ts` and the
+entry stay as they are:
 
 - `runtimeOptions`: `{ aot: true }`. Elysia picks its Bun adapter itself.
 - `readRuntimeEnv(source = process.env)`: fills `SPA_URL`, `SSR_URL` and `API_URL` from `APP_URL`,
   `R2_PUBLIC_URL` from `<APP_URL>/v1/media/file`, and `BETTER_AUTH_SECRET` from
   `DATA_DIR/secrets/better-auth-secret`. It does not invent `RESEND_API_KEY`.
-- `serve(app, { spaDir, port })`: returns `{ port, fetch }`, which Bun serves by itself when
+- `clientIpHeaders`: `["x-client-ip"]`, the header `serve` fills with the client's address. See
+  [The client's address](#the-clients-address-and-a-reverse-proxy).
+- `serve(app, { spaDir, port, trustedProxyHeader })`: returns `{ port, fetch }`, which Bun serves by itself when
   `apps/api/src/index.ts` is the entry. Nothing calls `.listen()`: a default export that has `fetch`
   plus a `listen()` starts two servers on one port. A file under `apps/spa/build/client` is served
   as is, anything else goes to the app, and a `GET` the app answers 404 gets `index.html` when the
   client accepts `text/html`. It also exits on SIGINT and SIGTERM, see below.
 
-Its tests (`index.test.ts`, 29) travel with it. In a project, `packages/api-runtime` is a workspace
+Its tests (`index.test.ts`, 36) travel with it. In a project, `packages/api-runtime` is a workspace
 and `bun run test` runs them; in this repo `registry/` is not one, so they run through
 `bun run test:scripts`.
 
@@ -61,6 +63,22 @@ once under `DATA_DIR`, to a temporary file that is hard-linked into place, so tw
 starts cannot produce two secrets and a reader never sees an empty file. `RESEND_API_KEY` is not
 treated the same way: `apps/api` requires it and nothing here can stand in for an email provider,
 so a volume and a port are not enough for this module, a key is needed too.
+
+## The client's address and a reverse proxy
+
+A rate limit has to tell clients apart, and the container publishes its port, so the one header that
+cannot be trusted is `x-forwarded-for`: any client can send it, and a limit keyed on it is a limit each
+client sets for itself. `serve` therefore stamps `x-client-ip` on every request, with the address of the
+socket (`server.requestIP`), after dropping whatever a client sent under that name. `clientIpHeaders`
+names it, and a module that rate-limits reads that, not a header of its own.
+
+Behind a reverse proxy the socket is the proxy, and every client would share one address. If a proxy
+you control sits in front and **overwrites** a header with the client's address, set
+`TRUSTED_PROXY_HEADER` to its name (`x-forwarded-for`, `x-real-ip`): `serve` then takes that header's
+last entry, the one your proxy appended, and falls back to the socket when it is absent. Do not set it
+while the port is published to clients directly: it hands the choice of address back to them. Traefik,
+Caddy and nginx all set `x-forwarded-for`; none of them is in this module's `compose.yaml`, which
+publishes the port.
 
 ## Deliberately left out
 

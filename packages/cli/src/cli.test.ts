@@ -553,6 +553,7 @@ describe("bg add <module>", () => {
       "PORT",
       "DATA_DIR",
       "APP_URL",
+      "TRUSTED_PROXY_HEADER",
       "RESEND_API_KEY",
     ]);
     expect(await snapshot(target)).toEqual(before);

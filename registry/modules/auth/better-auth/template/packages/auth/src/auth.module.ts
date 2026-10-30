@@ -1,6 +1,8 @@
 import { Elysia } from "elysia";
 import { and, eq, isNull } from "drizzle-orm";
-import { readRuntimeEnv } from "{{SCOPE}}/api-runtime";
+// `bg add` rewrites the scope in this line, so the formatter cannot know how wide it is.
+// oxfmt-ignore
+import { clientIpHeaders, readRuntimeEnv } from "{{SCOPE}}/api-runtime";
 import { config } from "{{SCOPE}}/api/lib/app.config";
 import { logger } from "{{SCOPE}}/api/lib/logger";
 // `bg add` rewrites the scope in this line, so the formatter cannot know how wide it is.
@@ -106,6 +108,7 @@ async function buildContext(binding: Awaited<ReturnType<typeof readD1>>): Promis
       baseURL: config.API_URL,
       appURL: config.SPA_URL,
       trustedOrigins: allowedOrigins(),
+      clientIpHeaders,
       mailer,
       logger,
     }),

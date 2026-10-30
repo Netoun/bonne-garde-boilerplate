@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { Elysia } from "elysia";
-import { readRuntimeEnv, runtimeOptions, serve } from "./index";
+import { clientIpHeaders, readRuntimeEnv, runtimeOptions, serve } from "./index";
 
 describe("runtimeOptions", () => {
   it("turns AOT compilation off, because Workers forbid new Function()", () => {
@@ -15,6 +15,12 @@ describe("runtimeOptions", () => {
     const response = await app.handle(new Request("http://localhost/ping"));
 
     expect(await response.text()).toBe("pong");
+  });
+});
+
+describe("clientIpHeaders", () => {
+  it("names cf-connecting-ip, which Cloudflare's edge sets on every request and overwrites", () => {
+    expect(clientIpHeaders).toEqual(["cf-connecting-ip"]);
   });
 });
 
