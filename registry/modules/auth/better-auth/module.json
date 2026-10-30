@@ -37,6 +37,7 @@
         "packages/auth/src/auth.organization.test.ts",
         "packages/auth/src/auth.rate-limit.test.ts",
         "packages/auth/src/auth.schema.test.ts",
+        "packages/auth/src/auth.seed.test.ts",
         "packages/auth/src/base-path.ts",
         "packages/auth/src/client.ts",
         "packages/auth/src/env.test.ts",
@@ -48,6 +49,7 @@
         "packages/auth/src/password.test.ts",
         "packages/auth/src/password.ts",
         "packages/auth/src/schema.ts",
+        "packages/auth/src/seed.ts",
         "packages/auth/src/testing.ts",
         "packages/auth/tsconfig.json",
         "packages/auth/tsconfig.test.json"
