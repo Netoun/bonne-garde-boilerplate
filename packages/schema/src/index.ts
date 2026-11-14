@@ -1,0 +1,41 @@
+export {
+  createEmptyProjectManifest,
+  DEFAULT_PLATFORM_REMOTE,
+  parseProjectManifest,
+  ProjectManifestError,
+  readProjectManifest,
+  recordIntention,
+  type AppRecord,
+  type FileRecord,
+  type IntentionOutcome,
+  type ItemRecord,
+  type ModuleIntentions,
+  type ModuleRecord,
+  type PatchOutcome,
+  type PatchStatus,
+  type PlatformIntentions,
+  type PlatformState,
+  type ProjectManifest,
+  type ProjectManifestRead,
+} from "./project-manifest";
+export {
+  categoryCardinality,
+  isModuleCategory,
+  MODULE_CATEGORIES,
+  ModuleManifestError,
+  parseModuleManifest,
+  type ModuleCategory,
+  type ModuleManifest,
+  type ModuleOption,
+  type ModuleOptionValue,
+  type ModulePatch,
+  type ModuleVariant,
+} from "./module-manifest";
+export {
+  INTENTION_CLASSIFICATIONS,
+  INTENTION_FILE_RE,
+  parseFrontmatter,
+  readModuleIntention,
+  type ModuleIntention,
+} from "./intention-document";
+export { isRepoRelative } from "./repo-path";
