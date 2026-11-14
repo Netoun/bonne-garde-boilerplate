@@ -7,7 +7,10 @@
  *   again on its own, which must too → bun install
  *   → typecheck → test → build → bg doctor --strict
  *   → for a configuration with a database: a table added to the schema barrel, `bun run db:generate`,
- *     the migration applied to a local D1 (`wrangler`, no network, no account), and what D1 holds read back
+ *     the migration applied to a local D1 (`wrangler`, no network, no account), and what D1 holds read back,
+ *     the tables of its modules (`medias`, storage's) in the migration and in D1 as well
+ *   → for a configuration with storage: the tests of `@scope/storage` counted, since the media routes
+ *     run only in the project (they import packages a project installs)
  *   → for a configuration with auth: `bun run auth:generate` again, which has to write the schema the
  *     module ships byte for byte (it is generator output, not a hand-edited file)
  *   → bun run check → the `checks` of every installed module
@@ -116,6 +119,7 @@ export const CONFIGURATIONS: readonly Configuration[] = [
       "db/d1",
       "orm/drizzle",
       "auth/better-auth",
+      "storage/r2",
       "web/spa",
       "web/ssr",
       "web/static",
@@ -161,6 +165,14 @@ export const AUTH_SCHEMA_FILE = "packages/auth/src/schema.ts";
 /** Whether the configuration has auth, so golden generates its schema again and compares. */
 export function hasAuth(configuration: Configuration): boolean {
   return configuration.modules.includes(AUTH_MODULE);
+}
+
+/** The module whose tests golden has to see run, and whose table has to be in the migration. */
+const STORAGE_MODULE = "storage/r2";
+
+/** Whether the configuration has storage, so golden counts its tests and expects its table in the migration. */
+export function hasStorage(configuration: Configuration): boolean {
+  return configuration.modules.includes(STORAGE_MODULE);
 }
 
 /**
@@ -249,6 +261,20 @@ export const goldenNotes = sqliteTable("${GOLDEN_TABLE}", {
 });
 `;
 
+/**
+ * The tables a module adds to the schema barrel, which `db:generate` has to write into the migration
+ * and D1 has to hold once it is applied. Auth's are read back by the seed phase, which clears and
+ * inserts into them.
+ */
+export const MODULE_TABLES: Readonly<Record<string, readonly string[]>> = {
+  "storage/r2": ["medias"],
+};
+
+/** What the migration has to create in a configuration: the table golden adds, and each module's own. */
+export function expectedTables(configuration: Configuration): string[] {
+  return [GOLDEN_TABLE, ...configuration.modules.flatMap((name) => MODULE_TABLES[name] ?? [])];
+}
+
 /** The modules of every configuration, each once, in the order they first appear. */
 export const MODULES: readonly string[] = [
   ...new Set(CONFIGURATIONS.flatMap((configuration) => configuration.modules)),
@@ -332,6 +358,17 @@ export const PATCHED: Readonly<Record<string, Readonly<Record<string, readonly s
       "elysia[app].use[authModule]",
       "exports[@app/auth/schema]",
       "imports[@app/auth]",
+    ],
+    "storage/r2": [
+      "dependencies.@app/storage",
+      "dependencies.@app/storage",
+      "elysia[app].use[mediaModule]",
+      "env.production.r2_buckets",
+      "env.production.vars.R2_PUBLIC_URL",
+      "exports[@app/storage/schema]",
+      "imports[@app/storage]",
+      "r2_buckets",
+      "vars.R2_PUBLIC_URL",
     ],
     "orm/drizzle": [
       "dependencies.@app/db",
@@ -815,6 +852,12 @@ export function testCounts(output: string): Record<string, number> {
 /** How many tests the auth package runs in the project; fewer means the root `test` stopped reaching it. */
 export const AUTH_MIN_TESTS = 45;
 
+/**
+ * How many tests the storage package runs in the project: the legacy media tests (r2, routes, e2e)
+ * ported, and the ones the extraction added. Fewer means the root `test` stopped reaching them.
+ */
+export const STORAGE_MIN_TESTS = 63;
+
 /** The workspace ran at least `atLeast` tests: a workspace the root `test` skipped would otherwise pass in silence. */
 export function expectRan(
   counts: Readonly<Record<string, number>>,
@@ -1182,6 +1225,9 @@ async function configured(
     if (hasEmail(configuration)) {
       expectRan(ran, `${SCOPE}/email`, EMAIL_MIN_TESTS);
     }
+    if (hasStorage(configuration)) {
+      expectRan(ran, `${SCOPE}/storage`, STORAGE_MIN_TESTS);
+    }
     const counts = Object.entries(ran);
     console.log(
       `golden: tests run: ${counts.map(([workspace, ran]) => `${workspace} ${ran}`).join(", ")}`,
@@ -1227,7 +1273,7 @@ async function configured(
     await regenerated(project, timings, name);
   }
   if (hasDatabase(configuration)) {
-    await migrated(project, timings, name);
+    await migrated(project, timings, name, expectedTables(configuration));
     if (hasAuth(configuration)) {
       await seeded(project, timings, name);
     }
@@ -1314,7 +1360,12 @@ async function regenerated(project: string, timings: Timing[], name: string): Pr
  * It runs after `doctor`, which would report the barrel as edited, and before `check`, which has to
  * pass over what `db:generate` wrote.
  */
-async function migrated(project: string, timings: Timing[], name: string): Promise<void> {
+async function migrated(
+  project: string,
+  timings: Timing[],
+  name: string,
+  tables: readonly string[],
+): Promise<void> {
   const db = join(project, "packages/db");
   const api = join(project, "apps/api");
   let migration = "";
@@ -1328,7 +1379,9 @@ async function migrated(project: string, timings: Timing[], name: string): Promi
     const files = await readdir(directory);
     const [first] = files.filter((file) => file.endsWith(".sql"));
     const sql = first === undefined ? "" : await Bun.file(join(directory, first)).text();
-    migration = expectGenerated(files, sql, GOLDEN_TABLE);
+    for (const table of tables) {
+      migration = expectGenerated(files, sql, table);
+    }
   });
 
   await phase(timings, `${name}: db migrate`, async () => {
@@ -1341,14 +1394,13 @@ async function migrated(project: string, timings: Timing[], name: string): Promi
           OFFLINE,
         ),
       ).flatMap((row) => (typeof row[column] === "string" ? [row[column]] : []));
-    expectMigrated(
-      {
-        tables: await rows("SELECT name FROM sqlite_master WHERE type = 'table'", "name"),
-        applied: await rows("SELECT name FROM d1_migrations ORDER BY id", "name"),
-      },
-      GOLDEN_TABLE,
-      migration,
-    );
+    const database = {
+      tables: await rows("SELECT name FROM sqlite_master WHERE type = 'table'", "name"),
+      applied: await rows("SELECT name FROM d1_migrations ORDER BY id", "name"),
+    };
+    for (const table of tables) {
+      expectMigrated(database, table, migration);
+    }
     expectNothingToApply(await capture([BUN, "run", "db:migrate:local"], api, OFFLINE));
   });
 }

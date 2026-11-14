@@ -28,6 +28,7 @@ const SHARED_MODULES = [
   "db/d1",
   "orm/drizzle",
   "auth/better-auth",
+  "storage/r2",
   "web/spa",
   "web/ssr",
   "web/static",

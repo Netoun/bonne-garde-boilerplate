@@ -2045,6 +2045,382 @@ describe("module contract", () => {
     });
   });
 
+  describe("storage/r2 is packages/storage: media over an R2 bucket, over the installed db, orm and auth (035)", () => {
+    const STORAGE = join(MODULES, "storage/r2/template");
+    const storageText = (path: string): Promise<string> => readFile(join(STORAGE, path), "utf8");
+    const storageModule = async () => {
+      const catalog = await loadLocalRegistry(join(ROOT, "registry/registry.json"));
+      const found = catalog.modules.find(
+        ({ manifest }) => manifest.category === "storage" && manifest.id === "r2",
+      );
+      const [variant, ...others] = found?.manifest.variants ?? [];
+      if (!found || !variant) {
+        throw new Error("registry/modules/storage/r2 is missing or has no variant");
+      }
+      return { catalog, manifest: found.manifest, variant, others };
+    };
+    /** Every source the module copies, with the comment lines dropped: a comment may quote an import. */
+    const sources = async (): Promise<[string, string][]> => {
+      const { variant } = await storageModule();
+      const read: [string, string][] = [];
+      for (const path of variant.copy ?? []) {
+        if (/^packages\/storage\/src\/.+\.ts$/.test(path)) {
+          read.push([
+            path,
+            (await storageText(path))
+              .split("\n")
+              .filter((line) => !/^\s*(?:\/\/(?!\/ <reference)|\/?\*)/.test(line))
+              .join("\n"),
+          ]);
+        }
+      }
+      return read;
+    };
+    const specifiers = (source: string): string[] =>
+      [...source.matchAll(/from\s+"([^"]+)"/g)].flatMap(([, specifier]) =>
+        specifier === undefined ? [] : [specifier],
+      );
+    /** The packages a source names: its imports, and the `/// <reference types>` that stands for one. */
+    const packagesNamedBy = (source: string): string[] => [
+      ...packagesImportedBy(source),
+      ...[...source.matchAll(/<reference types="([^"]+)"/g)].flatMap(([, name]) =>
+        name === undefined ? [] : [name],
+      ),
+    ];
+    const wranglerValue = (variant: { patch?: { type: string; file?: unknown }[] }) => {
+      const found = (variant.patch ?? []).find(
+        (patch) => patch.type === "jsonc.merge" && patch.file === "apps/api/wrangler.jsonc",
+      );
+      return found !== undefined && "value" in found && isRecord(found.value) ? found.value : {};
+    };
+
+    test("one variant, cloudflare, which owns the workspace `{{SCOPE}}/storage` at packages/storage", async () => {
+      const { variant, others } = await storageModule();
+
+      expect(others).toEqual([]);
+      expect(variant.key).toBe("cloudflare");
+      expect(variant.match).toEqual({ provider: "cloudflare" });
+      expect(variant.workspace).toEqual({ name: "{{SCOPE}}/storage", path: "packages/storage" });
+    });
+
+    test("it peers on the cloudflare provider, the d1 db, the drizzle orm and better-auth, and nothing else", async () => {
+      const { manifest } = await storageModule();
+
+      // 035: `storage` MUST declare `peers.provider`. It names no `api`: no source reaches the shell's
+      // `lib/*`, and `auth` already needs one, so a project that can install storage has an API.
+      expect(manifest.peers).toEqual({
+        provider: ["cloudflare"],
+        db: ["d1"],
+        orm: ["drizzle"],
+        auth: ["better-auth"],
+      });
+    });
+
+    test("a peer is declared exactly when a source reaches its package or file", async () => {
+      const { manifest, variant } = await storageModule();
+      // Which module writes what storage imports: `readRuntimeEnv` is the provider's, `./d1` the db's,
+      // the barrel's `createDB` and `./testing` the orm's, the macro and the tables auth's.
+      const peerOf = (specifier: string): string | null => {
+        if (specifier === "{{SCOPE}}/api-runtime") return "provider";
+        if (specifier === "{{SCOPE}}/db/d1") return "db";
+        if (specifier === "{{SCOPE}}/db" || specifier === "{{SCOPE}}/db/testing") return "orm";
+        if (specifier === "{{SCOPE}}/auth" || specifier === "{{SCOPE}}/auth/schema") return "auth";
+        return null;
+      };
+      const reached = new Set<string>();
+      const workspaces = new Set<string>();
+      for (const [, source] of await sources()) {
+        for (const specifier of specifiers(source)) {
+          const peer = peerOf(specifier);
+          if (peer !== null) reached.add(peer);
+          if (specifier.startsWith("{{SCOPE}}/") && !specifier.startsWith("{{SCOPE}}/storage")) {
+            workspaces.add(specifier.split("/").slice(0, 2).join("/"));
+            expect([specifier, peer !== null]).toEqual([specifier, true]);
+          }
+        }
+      }
+
+      expect([...reached].sort()).toEqual(Object.keys(manifest.peers).sort());
+      // Each project package it imports is a workspace dependency, and nothing else is.
+      expect(
+        Object.entries(variant.dependencies ?? {})
+          .filter(([, range]) => range === "workspace:*")
+          .map(([name]) => name)
+          .sort(),
+      ).toEqual([...workspaces].sort());
+    });
+
+    test("every package the sources import is declared, and every dependency is imported", async () => {
+      const { variant } = await storageModule();
+      const declared = new Set([
+        ...Object.keys(variant.dependencies ?? {}),
+        ...Object.keys(variant.devDependencies ?? {}),
+      ]);
+      const imported = new Set<string>();
+      for (const [path, source] of await sources()) {
+        for (const name of packagesNamedBy(source)) {
+          // `bun:test` and `node:*` are the runtime's; the project's own start with the scope.
+          if (name.includes(":") || name === "{{SCOPE}}/storage") continue;
+          imported.add(name);
+          expect([path, declared.has(name)]).toEqual([path, true]);
+        }
+      }
+
+      expect([...declared].filter((name) => !imported.has(name))).toEqual([]);
+    });
+
+    test("it pins what the modules it sits beside pin: one release of each package in the project", async () => {
+      const { catalog, variant } = await storageModule();
+      /** The version a sibling module pins `name` at, in the first variant that pins it. */
+      const pinnedBy = (
+        category: string,
+        id: string,
+        field: "dependencies" | "devDependencies",
+        name: string,
+      ): string | undefined => {
+        const found = catalog.modules.find(
+          ({ manifest }) => manifest.category === category && manifest.id === id,
+        );
+        return found?.manifest.variants.map((entry) => entry[field]?.[name]).find(Boolean);
+      };
+
+      for (const [name, version] of Object.entries(variant.dependencies ?? {})) {
+        expect(`${name}@${version}`).toMatch(/^.+@(?:\d+\.\d+\.\d+|workspace:\*)$/);
+      }
+      // `undefined` on either side fails: a sibling that stopped pinning the package is a change to read.
+      const same = (
+        mine: "dependencies" | "devDependencies",
+        name: string,
+        by: [string, string, "dependencies" | "devDependencies"],
+      ) => expect([name, variant[mine]?.[name]]).toEqual([name, pinnedBy(...by, name)]);
+      same("dependencies", "drizzle-orm", ["auth", "better-auth", "dependencies"]);
+      same("dependencies", "elysia", ["auth", "better-auth", "dependencies"]);
+      same("devDependencies", "@elysiajs/eden", ["api", "elysia", "dependencies"]);
+      same("devDependencies", "miniflare", ["db", "d1", "devDependencies"]);
+      same("devDependencies", "@cloudflare/workers-types", ["db", "d1", "devDependencies"]);
+    });
+
+    test("it writes only inside packages/storage, from explicit paths that exist", async () => {
+      const { variant } = await storageModule();
+
+      expect(variant.copy?.filter((path) => !path.startsWith("packages/storage/"))).toEqual([]);
+      expect(variant.copy?.filter((path) => /[*?[\]{}]/.test(path))).toEqual([]);
+      const shipped = (
+        await Array.fromAsync(
+          new Bun.Glob("**/*").scan({ cwd: STORAGE, dot: true, onlyFiles: true }),
+        )
+      ).sort();
+      expect([...(variant.copy ?? [])].sort()).toEqual(shipped);
+    });
+
+    test("it wires itself in by patches on four known seams, and by nothing else (060)", async () => {
+      const { variant } = await storageModule();
+      const patches = (variant.patch ?? []).map(({ type, file }) => `${type} ${String(file)}`);
+
+      expect(patches).toEqual([
+        "jsonc.merge apps/api/wrangler.jsonc",
+        "package.dependencies apps/api/package.json",
+        "ts.addImport apps/api/src/app.ts",
+        "ts.elysiaUse apps/api/src/app.ts",
+        "package.dependencies packages/db/package.json",
+        "ts.addNamedExport packages/db/src/schema/index.ts",
+      ]);
+      // A patch that fails becomes a pending intention, so each says what it was for.
+      for (const patch of variant.patch ?? []) {
+        expect(typeof patch.intent).toBe("string");
+      }
+    });
+
+    test("apps/api and packages/db depend on the storage package they import from, as workspaces", async () => {
+      const { variant } = await storageModule();
+      const declared = (file: string) =>
+        (variant.patch ?? [])
+          .filter((patch) => patch.type === "package.dependencies" && patch.file === file)
+          .map((patch) => patch.dependencies);
+
+      expect(declared("apps/api/package.json")).toEqual([{ "{{SCOPE}}/storage": "workspace:*" }]);
+      expect(declared("packages/db/package.json")).toEqual([
+        { "{{SCOPE}}/storage": "workspace:*" },
+      ]);
+    });
+
+    test("the module is mounted by `.use(mediaModule)` on the `app` of the shell, imported from the package", async () => {
+      const { variant } = await storageModule();
+      const find = (type: string) =>
+        (variant.patch ?? []).find(
+          (patch) => patch.type === type && patch.file === "apps/api/src/app.ts",
+        );
+
+      expect(find("ts.addImport")).toMatchObject({
+        moduleSpecifier: "{{SCOPE}}/storage",
+        namedImports: ["mediaModule"],
+      });
+      expect(find("ts.elysiaUse")).toMatchObject({ targetName: "app", argument: "mediaModule" });
+      // The name it imports is one the package exports.
+      expect(await storageText("packages/storage/src/index.ts")).toMatch(/\bmediaModule\b/);
+    });
+
+    test("the barrel re-exports every table and relation of the schema, and only those, and stays what the formatter writes", async () => {
+      const { variant } = await storageModule();
+      const patch = (variant.patch ?? []).find((entry) => entry.type === "ts.addNamedExport");
+      const exported = Array.isArray(patch?.exports) ? patch.exports.map(String) : [];
+      const schema = await storageText("packages/storage/src/schema.ts");
+      const declared = [...schema.matchAll(/^export const (\w+) = /gm)].map(
+        ([, name]) => name ?? "",
+      );
+      const file = "packages/db/src/schema/index.ts";
+      const barrel = await readFile(join(MODULES, "orm/drizzle/template", file), "utf8");
+
+      expect(patch?.moduleSpecifier).toBe("{{SCOPE}}/storage/schema");
+      expect([...exported].sort()).toEqual([...declared].sort());
+      const wired = addNamedExport(file, barrel, "@app/storage/schema", exported);
+      expect(wired).toContain('from "@app/storage/schema";');
+      await expect(formatWithProjectFormatter({ [file]: wired })).resolves.toEqual({
+        [file]: wired,
+      });
+    });
+
+    test("the schema imports nothing of the project but the auth tables it points at: the barrel re-exports it, so a way back would be a cycle", async () => {
+      const schema = await storageText("packages/storage/src/schema.ts");
+
+      expect(specifiers(schema).sort()).toEqual([
+        "drizzle-orm",
+        "drizzle-orm/sqlite-core",
+        "{{SCOPE}}/auth/schema",
+      ]);
+      // The legacy `coreSchema` aggregate is not shipped: the barrel is what gathers the tables.
+      expect(schema).not.toContain("coreSchema");
+    });
+
+    test("package.json carries exports and scripts and no dependency map, and each export is a file it ships", async () => {
+      const body: unknown = JSON.parse(await storageText("packages/storage/package.json"));
+      const record = isRecord(body) ? body : {};
+      const scripts = isRecord(record.scripts) ? record.scripts : {};
+      const exported = isRecord(record.exports) ? record.exports : {};
+
+      expect(record.name).toBe("{{SCOPE}}/storage");
+      expect(typeof scripts.typecheck).toBe("string");
+      expect(scripts.test).toBe("bun test");
+      for (const map of ["dependencies", "devDependencies", "peerDependencies"]) {
+        expect(map in record ? map : null).toBeNull();
+      }
+      expect(Object.keys(exported).sort()).toEqual([".", "./schema"]);
+      for (const target of Object.values(exported)) {
+        expect(existsSync(join(STORAGE, "packages/storage", String(target)))).toBe(true);
+      }
+    });
+
+    test("R2_PUBLIC_URL is its env key, and the only one, with the local media route as its example", async () => {
+      const { variant } = await storageModule();
+
+      expect(variant.env).toEqual([
+        {
+          name: "R2_PUBLIC_URL",
+          required: true,
+          example: "http://localhost:5172/v1/media/file",
+        },
+      ]);
+    });
+
+    test("no provider and no api module declares R2_PUBLIC_URL: a key belongs to the module that reads it (035, 07)", async () => {
+      const { catalog } = await storageModule();
+      const declarers = catalog.modules
+        .filter(({ manifest }) =>
+          manifest.variants.some((variant) =>
+            (variant.env ?? []).some(({ name }) => name === "R2_PUBLIC_URL"),
+          ),
+        )
+        .map(({ manifest }) => `${manifest.category}/${manifest.id}`);
+
+      expect(declarers).toEqual(["storage/r2"]);
+      // The shell reads none of storage's keys, so it boots without the module.
+      const config = await readFile(
+        join(MODULES, "api/elysia/template/apps/api/src/lib/app.config.ts"),
+        "utf8",
+      );
+      expect(config).not.toContain("R2_PUBLIC_URL");
+    });
+
+    test("the Worker's wrangler.jsonc gets the BUCKET binding the code reads, and the public url, for both environments", async () => {
+      const { variant } = await storageModule();
+      const value = wranglerValue(variant);
+      const production =
+        isRecord(value.env) && isRecord(value.env.production) ? value.env.production : {};
+      const binding = /R2_BINDING = "([^"]+)"/.exec(
+        await storageText("packages/storage/src/bucket.ts"),
+      )?.[1];
+
+      // AGENTS.md: only the `DB` and `BUCKET` bindings may be Cloudflare-specific.
+      expect(binding).toBe("BUCKET");
+      for (const scope of [value, production]) {
+        expect(scope.r2_buckets).toEqual([{ binding: "BUCKET", bucket_name: "my-app-media" }]);
+        expect(isRecord(scope.vars) ? Object.keys(scope.vars) : []).toEqual(["R2_PUBLIC_URL"]);
+      }
+      // The example of the env key is the local value, which `wrangler dev` reads.
+      expect(isRecord(value.vars) ? value.vars.R2_PUBLIC_URL : null).toBe(
+        variant.env?.[0]?.example,
+      );
+    });
+
+    test("the media route is the one the stored urls carry: /v1/media/file, under the module's own /v1 prefix", async () => {
+      const module = await storageText("packages/storage/src/media.module.ts");
+      const env = await storageText("packages/storage/src/env.ts");
+
+      expect(module).toContain('prefix: "/v1"');
+      expect(env).toContain("/v1/media/file");
+    });
+
+    test("the installed peers pick the variant, and a missing peer is named before anything is written", async () => {
+      const { catalog } = await storageModule();
+      const project = createEmptyProjectManifest({ scope: "@app", registries: {} });
+      const stack: ModuleRef[] = [
+        { category: "provider", id: "cloudflare" },
+        { category: "config", id: "branding" },
+        { category: "api", id: "elysia" },
+        { category: "db", id: "d1" },
+        { category: "orm", id: "drizzle" },
+        { category: "auth", id: "better-auth" },
+      ];
+
+      const plans = await resolveModulePlans(
+        catalog,
+        [...stack, { category: "storage", id: "r2" }],
+        project,
+      );
+      expect(plans.map(({ key, variant }) => `${key}:${variant}`)).toContain(
+        "storage/r2:cloudflare",
+      );
+
+      // 035: without auth, the error names the category and its allow-list.
+      await expect(
+        resolveModulePlans(
+          catalog,
+          [
+            ...stack.filter(({ category }) => category !== "auth"),
+            { category: "storage", id: "r2" },
+          ],
+          project,
+        ),
+      ).rejects.toThrow(
+        /storage\/r2 needs a module in category auth \(better-auth\) and none is installed/,
+      );
+      // 035: storage declares `peers.provider`, and R2 is Cloudflare's.
+      await expect(
+        resolveModulePlans(
+          catalog,
+          [
+            ...stack.filter(({ category }) => category !== "provider"),
+            { category: "provider", id: "dockerfile" },
+            { category: "storage", id: "r2" },
+          ],
+          project,
+        ),
+      ).rejects.toThrow(
+        /db\/d1 accepts only cloudflare for provider, but provider\/dockerfile is present/,
+      );
+    });
+  });
+
   describe("email/resend is packages/email, and wires itself into auth by the variant the installed auth selects (035, 060, 065)", () => {
     const EMAIL = join(MODULES, "email/resend/template");
     const emailText = (path: string): Promise<string> => readFile(join(EMAIL, path), "utf8");

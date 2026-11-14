@@ -13,6 +13,7 @@ import {
   dockerSkipReason,
   EXCLUDED,
   EXCLUDED_MODULES,
+  expectedTables,
   expectGenerated,
   expectMigrated,
   expectNothingToApply,
@@ -38,7 +39,9 @@ import {
   RESOLUTIONS,
   wiredTest,
   wireEmailIntoAuth,
+  hasStorage,
   WITHOUT_ORM,
+  MODULE_TABLES,
   MODULES,
   PATCHED,
   publishedPort,
@@ -47,6 +50,7 @@ import {
   SCOPE,
   selectItems,
   selectModules,
+  STORAGE_MIN_TESTS,
   testCounts,
   until,
   type AddedModule,
@@ -217,6 +221,7 @@ describe("the golden project and modules", () => {
       "db/d1",
       "orm/drizzle",
       "auth/better-auth",
+      "storage/r2",
       "web/spa",
       "web/ssr",
       "web/static",
@@ -484,6 +489,17 @@ describe("the golden project and patches", () => {
           "elysia[app].use[authModule]",
           "exports[@app/auth/schema]",
           "imports[@app/auth]",
+        ],
+        "storage/r2": [
+          "dependencies.@app/storage",
+          "dependencies.@app/storage",
+          "elysia[app].use[mediaModule]",
+          "env.production.r2_buckets",
+          "env.production.vars.R2_PUBLIC_URL",
+          "exports[@app/storage/schema]",
+          "imports[@app/storage]",
+          "r2_buckets",
+          "vars.R2_PUBLIC_URL",
         ],
         "orm/drizzle": [
           "dependencies.@app/db",
@@ -1115,5 +1131,47 @@ describe("the email phases", () => {
       expect(proof).toContain("Reset your password");
       expect(proof).not.toContain("{{SCOPE}}");
     });
+  });
+});
+
+describe("the storage phases", () => {
+  test("a configuration counts the storage tests and expects its table when it installs the storage module, and only the cloudflare one does", () => {
+    expect(hasStorage({ name: "a", modules: ["api/elysia", "storage/r2"], items: false })).toBe(
+      true,
+    );
+    expect(
+      hasStorage({ name: "b", modules: ["api/elysia", "auth/better-auth"], items: false }),
+    ).toBe(false);
+    expect(CONFIGURATIONS.filter(hasStorage).map(({ name }) => name)).toEqual(["cloudflare"]);
+  });
+
+  test("storage is installed after the db, the orm and the auth it peers on", () => {
+    const modules = CONFIGURATIONS.find(({ name }) => name === "cloudflare")?.modules ?? [];
+
+    for (const peer of ["db/d1", "orm/drizzle", "auth/better-auth"]) {
+      expect(modules.indexOf("storage/r2")).toBeGreaterThan(modules.indexOf(peer));
+    }
+  });
+
+  test("the migration has to create the table golden adds and the medias table", () => {
+    expect(MODULE_TABLES).toEqual({ "storage/r2": ["medias"] });
+    expect(expectedTables({ name: "a", modules: ["orm/drizzle"], items: false })).toEqual([
+      GOLDEN_TABLE,
+    ]);
+    const cloudflare = CONFIGURATIONS.find(({ name }) => name === "cloudflare");
+    expect(cloudflare === undefined ? [] : expectedTables(cloudflare)).toEqual([
+      GOLDEN_TABLE,
+      "medias",
+    ]);
+  });
+
+  test("the floor is the storage package's own count: the legacy media tests and what the extraction added", () => {
+    expect(STORAGE_MIN_TESTS).toBeGreaterThanOrEqual(44);
+    expect(() =>
+      expectRan({ "@app/storage": STORAGE_MIN_TESTS }, "@app/storage", STORAGE_MIN_TESTS),
+    ).not.toThrow();
+    expect(() =>
+      expectRan({ "@app/storage": STORAGE_MIN_TESTS - 1 }, "@app/storage", STORAGE_MIN_TESTS),
+    ).toThrow(new RegExp(`ran ${STORAGE_MIN_TESTS - 1} tests`));
   });
 });
