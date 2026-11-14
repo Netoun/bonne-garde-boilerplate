@@ -269,6 +269,19 @@ describe("module contract", () => {
     expect(ignored).toContain("packages/db/migrations/");
   });
 
+  test("tooling/vite-plus leaves bg.json alone: the CLI writes it, and `bg record` makes an array the formatter would collapse", async () => {
+    const config: unknown = (
+      await import(join(MODULES, "tooling/vite-plus/template/vite.config.ts"))
+    ).default;
+    const fmt = isRecord(config) ? config.fmt : undefined;
+    const ignored = isRecord(fmt) && Array.isArray(fmt.ignorePatterns) ? fmt.ignorePatterns : [];
+
+    // A recorded intention is `"applied": ["<id>"]` laid out one id per line by `JSON.stringify`, and
+    // `vp fmt` wants it on one line, so a project that formats it fails `bun run check` right after
+    // its first `bg record`. Golden is where that was found: the first module to ship an intention.
+    expect(ignored).toContain("bg.json");
+  });
+
   test("every dependency a variant or a package.dependencies patch declares is an exact version (035: exact version maps)", async () => {
     const catalog = await loadLocalRegistry(join(ROOT, "registry/registry.json"));
     const loose: string[] = [];
@@ -2032,6 +2045,253 @@ describe("module contract", () => {
     });
   });
 
+  describe("email/resend is packages/email, and wires itself into auth by the variant the installed auth selects (035, 060, 065)", () => {
+    const EMAIL = join(MODULES, "email/resend/template");
+    const emailText = (path: string): Promise<string> => readFile(join(EMAIL, path), "utf8");
+    const emailModule = async () => {
+      const catalog = await loadLocalRegistry(join(ROOT, "registry/registry.json"));
+      const found = catalog.modules.find(
+        ({ manifest }) => manifest.category === "email" && manifest.id === "resend",
+      );
+      const standalone = found?.manifest.variants.find(({ key }) => key === "default");
+      const wired = found?.manifest.variants.find(({ key }) => key === "better-auth");
+      if (!found || !standalone || !wired) {
+        throw new Error("registry/modules/email/resend is missing, or lacks a variant");
+      }
+      return { catalog, manifest: found.manifest, standalone, wired };
+    };
+    /** Every source the package ships that is not a test, comment lines dropped: a comment may quote an import. */
+    const sources = async (): Promise<[string, string][]> => {
+      const { standalone } = await emailModule();
+      const read: [string, string][] = [];
+      for (const path of standalone.copy ?? []) {
+        if (/^packages\/email\/src\/.+\.ts$/.test(path) && !path.endsWith(".test.ts")) {
+          read.push([
+            path,
+            (await emailText(path))
+              .split("\n")
+              .filter((line) => !/^\s*(?:\/\/|\/?\*)/.test(line))
+              .join("\n"),
+          ]);
+        }
+      }
+      return read;
+    };
+    const specifiers = (source: string): string[] =>
+      [...source.matchAll(/from\s+"([^"]+)"/g)].flatMap(([, specifier]) =>
+        specifier === undefined ? [] : [specifier],
+      );
+
+    test("two variants own the workspace `{{SCOPE}}/email` at packages/email: the package alone, and the package wired into auth", async () => {
+      const { manifest, standalone, wired } = await emailModule();
+
+      expect(manifest.variants.map(({ key }) => key)).toEqual(["default", "better-auth"]);
+      expect(standalone.match).toEqual({});
+      // No optional peer exists in 035: auth is not a peer of email, so email installs without it, and
+      // the most specific `match` picks the variant that wires when auth is there.
+      expect(wired.match).toEqual({ auth: "better-auth" });
+      for (const variant of [standalone, wired]) {
+        expect(variant.workspace).toEqual({ name: "{{SCOPE}}/email", path: "packages/email" });
+      }
+      expect(manifest.options).toBeUndefined();
+    });
+
+    test("the variants differ in the wiring and in nothing else: the same files, dependencies and env key", async () => {
+      const { standalone, wired } = await emailModule();
+
+      expect(wired.copy).toEqual(standalone.copy);
+      expect(wired.dependencies).toEqual(standalone.dependencies);
+      expect(wired.devDependencies).toEqual(standalone.devDependencies);
+      expect(wired.env).toEqual(standalone.env);
+      expect(standalone.patch).toBeUndefined();
+      expect(standalone.intent).toBeUndefined();
+    });
+
+    test("it peers on the provider and the branding config, and on nothing else: auth is wired to it, never the reverse", async () => {
+      const { manifest } = await emailModule();
+
+      expect(manifest.peers).toEqual({ provider: [], config: ["branding"] });
+    });
+
+    test("a peer is declared exactly when a source reaches its package, and no source reaches auth or the api shell", async () => {
+      const { manifest, standalone } = await emailModule();
+      const peerOf = (specifier: string): string | null => {
+        if (specifier === "{{SCOPE}}/api-runtime") return "provider";
+        if (specifier === "{{SCOPE}}/config") return "config";
+        return null;
+      };
+      const reached = new Set<string>();
+      const workspaces = new Set<string>();
+      const foreign: string[] = [];
+      for (const [path, source] of await sources()) {
+        for (const specifier of specifiers(source)) {
+          const peer = peerOf(specifier);
+          if (peer !== null) reached.add(peer);
+          if (specifier.startsWith("{{SCOPE}}/")) {
+            workspaces.add(specifier.split("/").slice(0, 2).join("/"));
+            if (peer === null) foreign.push(`${path}: ${specifier}`);
+          }
+        }
+      }
+
+      expect(foreign).toEqual([]);
+      expect([...reached].sort()).toEqual(Object.keys(manifest.peers).sort());
+      expect(
+        Object.entries(standalone.dependencies ?? {})
+          .filter(([, range]) => range === "workspace:*")
+          .map(([name]) => name)
+          .sort(),
+      ).toEqual([...workspaces].sort());
+    });
+
+    test("every package a source imports is a dependency, and the tests' types are the dev dependency", async () => {
+      const { standalone } = await emailModule();
+      const declared = new Set(Object.keys(standalone.dependencies ?? {}));
+      const imported = new Set<string>();
+      for (const [, source] of await sources()) {
+        for (const specifier of specifiers(source)) {
+          if (!specifier.startsWith(".") && !specifier.startsWith("{{SCOPE}}/")) {
+            imported.add(packagesImportedBy(`from "${specifier}"`)[0] ?? specifier);
+          }
+        }
+      }
+
+      expect([...imported].filter((name) => !declared.has(name))).toEqual([]);
+      expect(Object.keys(standalone.devDependencies ?? {})).toEqual(["@types/react"]);
+    });
+
+    test("RESEND_API_KEY is its env key and the only one, and no other category declares it", async () => {
+      const { catalog, standalone } = await emailModule();
+
+      expect(standalone.env).toEqual([{ name: "RESEND_API_KEY", required: true, example: "" }]);
+      const declaring = catalog.modules
+        .filter(({ manifest }) =>
+          manifest.variants.some(({ env }) =>
+            (env ?? []).some(({ name }) => name === "RESEND_API_KEY"),
+          ),
+        )
+        .map(({ manifest }) => `${manifest.category}/${manifest.id}`);
+      expect(declaring).toEqual(["email/resend"]);
+    });
+
+    test("no source reads the environment at import: the project boots with no key, and an email asked for with none fails naming it", async () => {
+      for (const [path, source] of await sources()) {
+        const atTopLevel = source
+          .split("\n")
+          .filter((line) =>
+            /^(?:export\s+)?(?:const|let)\b.*\b(?:process\.env|readRuntimeEnv\()/.test(line),
+          );
+        expect(`${path}: ${atTopLevel.join(" | ")}`).toBe(`${path}: `);
+      }
+    });
+
+    test("the wired variant patches the two files auth documents as its seam, and says why in each patch", async () => {
+      const { wired } = await emailModule();
+
+      expect(wired.patch).toEqual([
+        {
+          type: "package.dependencies",
+          file: "packages/auth/package.json",
+          dependencies: { "{{SCOPE}}/email": "workspace:*" },
+          intent: expect.stringContaining("auth package"),
+        },
+        {
+          type: "ts.addImport",
+          file: "packages/auth/src/mailer.ts",
+          moduleSpecifier: "{{SCOPE}}/email",
+          namedImports: ["emailMailer"],
+          intent: expect.stringContaining("mailer.ts"),
+        },
+      ]);
+      const auth = join(MODULES, "auth/better-auth/template");
+      for (const patch of wired.patch ?? []) {
+        expect(existsSync(join(auth, String(patch.file)))).toBe(true);
+      }
+    });
+
+    test("what the intention replaces is what auth ships: the initializer of `mailer`, and the import only it uses", async () => {
+      const { wired } = await emailModule();
+      const mailer = await readFile(
+        join(MODULES, "auth/better-auth/template/packages/auth/src/mailer.ts"),
+        "utf8",
+      );
+      const document = await readFile(
+        join(MODULES, "email/resend/intent/01-wire-email-into-auth.md"),
+        "utf8",
+      );
+
+      expect(wired.intent).toEqual(["01-wire-email-into-auth.md"]);
+      expect(mailer).toContain("export const mailer: AuthMailer = unconfiguredMailer(apiLogger);");
+      expect(mailer).toContain('import { logger as apiLogger } from "{{SCOPE}}/api/lib/logger";');
+      // The import and the initializer are its only two mentions: nothing else in the file needs it.
+      expect(mailer.split("apiLogger").length - 1).toBe(2);
+      expect(document).toContain("unconfiguredMailer(apiLogger)");
+      expect(document).toContain("export const mailer: AuthMailer = emailMailer;");
+      expect(document).toContain("id: email/resend/wire-email-into-auth");
+    });
+
+    test("package.json carries exports and scripts and no dependency map, and each export is a file it ships", async () => {
+      const body: unknown = JSON.parse(await emailText("packages/email/package.json"));
+      const record = isRecord(body) ? body : {};
+      const scripts = isRecord(record.scripts) ? record.scripts : {};
+      const exported = isRecord(record.exports) ? record.exports : {};
+
+      expect(record.name).toBe("{{SCOPE}}/email");
+      expect(typeof scripts.typecheck).toBe("string");
+      expect(scripts.test).toBe("bun test");
+      for (const map of ["dependencies", "devDependencies", "peerDependencies"]) {
+        expect(map in record ? map : null).toBeNull();
+      }
+      expect(Object.keys(exported).sort()).toEqual([".", "./testing"]);
+      for (const target of Object.values(exported)) {
+        expect(existsSync(join(EMAIL, "packages/email", String(target)))).toBe(true);
+      }
+    });
+
+    test("the installed peers pick the variant: with auth the one that wires, without it the package alone, and a missing peer is named", async () => {
+      const { catalog } = await emailModule();
+      const project = createEmptyProjectManifest({ scope: "@app", registries: {} });
+      const stack: ModuleRef[] = [
+        { category: "provider", id: "cloudflare" },
+        { category: "config", id: "branding" },
+      ];
+      const email: ModuleRef = { category: "email", id: "resend" };
+      const planned = async (refs: ModuleRef[]) =>
+        (await resolveModulePlans(catalog, refs, project)).find(
+          ({ key }) => key === "email/resend",
+        );
+
+      const alone = await planned([...stack, email]);
+      expect(alone?.variant).toBe("default");
+      expect(alone?.patches).toEqual([]);
+      expect(alone?.intentions).toEqual([]);
+
+      const withAuth = await planned([
+        ...stack,
+        { category: "api", id: "elysia" },
+        { category: "db", id: "d1" },
+        { category: "orm", id: "drizzle" },
+        { category: "auth", id: "better-auth" },
+        email,
+      ]);
+      expect(withAuth?.variant).toBe("better-auth");
+      expect(withAuth?.patches.map(({ type, file }) => `${type} ${file}`)).toEqual([
+        "package.dependencies packages/auth/package.json",
+        "ts.addImport packages/auth/src/mailer.ts",
+      ]);
+      expect(withAuth?.intentions.map(({ id }) => id)).toEqual([
+        "email/resend/wire-email-into-auth",
+      ]);
+      // The scope is rendered in the staged document: it names the project's package.
+      expect(withAuth?.intentions[0]?.document).toContain("@app/email");
+      expect(withAuth?.intentions[0]?.document).not.toContain("{{SCOPE}}");
+
+      await expect(planned([stack[0] as ModuleRef, email])).rejects.toThrow(
+        /email\/resend needs a module in category config \(branding\) and none is installed/,
+      );
+    });
+  });
+
   test("an env key belongs to the one module that reads it: no two categories declare the same key (035, 060)", async () => {
     const catalog = await loadLocalRegistry(join(ROOT, "registry/registry.json"));
     const declaredBy = new Map<string, Set<string>>();
@@ -2054,6 +2314,8 @@ describe("module contract", () => {
     ).toEqual([]);
     // The providers read `BETTER_AUTH_SECRET` to complete it (`dockerfile`) and never to use it.
     expect(declaredBy.get("BETTER_AUTH_SECRET")?.has("provider") ?? false).toBe(false);
+    // `RESEND_API_KEY` is the email module's: the providers had it while there was no such module.
+    expect([...(declaredBy.get("RESEND_API_KEY") ?? [])]).toEqual(["email"]);
   });
 
   test("every patch a variant declares is one the CLI applies, with arguments it accepts", async () => {

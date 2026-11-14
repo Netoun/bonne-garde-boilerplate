@@ -31,6 +31,7 @@ const SHARED_MODULES = [
   "web/spa",
   "web/ssr",
   "web/static",
+  "email/resend",
 ];
 /**
  * The project on the other provider. `provider` admits one module, and the variant of `api/elysia`
