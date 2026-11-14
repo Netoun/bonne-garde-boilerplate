@@ -31,4 +31,11 @@ export {
   type ModulePatch,
   type ModuleVariant,
 } from "./module-manifest";
+export {
+  INTENTION_CLASSIFICATIONS,
+  INTENTION_FILE_RE,
+  parseFrontmatter,
+  readModuleIntention,
+  type ModuleIntention,
+} from "./intention-document";
 export { isRepoRelative } from "./repo-path";

@@ -1,5 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { parseFrontmatter } from "@bonne-garde/schema";
 
 export class IntentionsLintError extends Error {
   readonly errors: string[];
@@ -35,55 +36,7 @@ const RELEASE_DIR_RE = /^v(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/;
 const FILE_RE = /^(\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/;
 const CLASSIFICATIONS = new Set(["informational", "migration", "breaking-manual"]);
 
-export function parseFrontmatter(source: string): Record<string, unknown> {
-  if (!source.startsWith("---\n") && !source.startsWith("---\r\n")) {
-    throw new Error("missing frontmatter");
-  }
-  const end = source.indexOf("\n---", 4);
-  if (end === -1) {
-    throw new Error("unclosed frontmatter");
-  }
-  const block = source.slice(4, end).replace(/\r/g, "");
-  const result: Record<string, unknown> = {};
-  let currentKey: string | null = null;
-  let listMode = false;
-
-  for (const line of block.split("\n")) {
-    if (listMode && currentKey) {
-      const listItem = line.match(/^\s+-\s+(.+)$/);
-      if (listItem) {
-        const list = result[currentKey];
-        if (Array.isArray(list)) {
-          list.push(listItem[1]!.trim());
-        }
-        continue;
-      }
-      listMode = false;
-      currentKey = null;
-    }
-
-    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-    if (!match) continue;
-    const key = match[1]!;
-    const raw = match[2]!;
-    if (raw === "" || raw === "|" || raw === ">") {
-      result[key] = [];
-      currentKey = key;
-      listMode = true;
-      continue;
-    }
-    if (raw.startsWith("[") && raw.endsWith("]")) {
-      const inner = raw.slice(1, -1).trim();
-      result[key] = inner ? inner.split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")) : [];
-      continue;
-    }
-    result[key] = raw.replace(/^["']|["']$/g, "");
-    currentKey = key;
-    listMode = false;
-  }
-
-  return result;
-}
+export { parseFrontmatter };
 
 function asString(value: unknown, field: string, file: string): string {
   if (typeof value !== "string" || value.length === 0) {
