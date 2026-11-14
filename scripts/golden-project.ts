@@ -119,6 +119,7 @@ export const CONFIGURATIONS: readonly Configuration[] = [
       "web/spa",
       "web/ssr",
       "web/static",
+      "email/resend",
     ],
     items: true,
   },
@@ -131,6 +132,7 @@ export const CONFIGURATIONS: readonly Configuration[] = [
       "ui/shadcn",
       "api/elysia",
       "web/spa",
+      "email/resend",
     ],
     items: false,
   },
@@ -347,6 +349,7 @@ export const PATCHED: Readonly<Record<string, Readonly<Record<string, readonly s
     "web/spa": ["scripts.deploy", "scripts.dev"],
     "web/ssr": ["scripts.deploy", "scripts.dev"],
     "web/static": ["scripts.deploy", "scripts.dev"],
+    "email/resend": ["dependencies.@app/email", "imports[@app/email]"],
   },
   dockerfile: {
     "config/branding": ["scripts.gen:branding"],
@@ -559,6 +562,175 @@ export function addArguments(modules: readonly string[], items: readonly string[
     throw new Error(`named twice in one \`bg add\`: ${[...new Set(twice)].join(", ")}`);
   }
   return ["add", ...names, "--yes", "--no-install"];
+}
+
+/** The module whose package is `<scope>/email`, whose tests golden counts. */
+const EMAIL_MODULE = "email/resend";
+
+/** Whether the configuration installs email, so golden counts its tests and resolves what it wires. */
+export function hasEmail(configuration: Configuration): boolean {
+  return configuration.modules.includes(EMAIL_MODULE);
+}
+
+/** How many tests the email package runs in the project; fewer means the root `test` stopped reaching it. */
+export const EMAIL_MIN_TESTS = 19;
+
+/** The file auth documents as the one place an email module wires itself in, and the proof golden adds beside it. */
+export const MAILER_FILE = "packages/auth/src/mailer.ts";
+const WIRED_TEST_FILE = "packages/auth/src/mailer.wired.test.ts";
+
+/**
+ * The intentions `bg add` leaves pending (050 step 14, 065), per configuration: what the variants it
+ * selects ship. Golden resolves each the way an executor would, and a configuration that gains one is a
+ * decision made here. The dockerfile project has no auth, so email selects the variant that wires nothing
+ * and nothing is pending: it installs cleanly and `doctor --strict` is green as it is.
+ */
+export const PENDING: Readonly<Record<string, readonly string[]>> = {
+  cloudflare: ["email/resend/wire-email-into-auth"],
+  dockerfile: [],
+};
+
+/** The ids in the `pendingIntentions` list `bg add` prints. */
+export function readPendingIntentions(stdout: string): string[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    throw new Error("bg add did not print JSON");
+  }
+  if (!isRecord(parsed) || !Array.isArray(parsed.pendingIntentions)) {
+    throw new Error("bg add printed no `pendingIntentions` array");
+  }
+  return parsed.pendingIntentions.map((entry: unknown) => {
+    if (!isRecord(entry) || typeof entry.id !== "string") {
+      throw new Error("bg add printed a pending intention without an id");
+    }
+    return entry.id;
+  });
+}
+
+/** The pending intentions are the ones golden expects: no more, which would be unresolved work, and no fewer. */
+export function expectPending(reported: readonly string[], expected: readonly string[]): void {
+  if (JSON.stringify([...reported].sort()) !== JSON.stringify([...expected].sort())) {
+    throw new Error(
+      `bg add left pending [${reported.join(", ")}], golden expects [${expected.join(", ")}]`,
+    );
+  }
+}
+
+/**
+ * The edit `email/resend/wire-email-into-auth` describes, as an executor makes it: `mailer` becomes
+ * `emailMailer`, which `bg add` already imported (a patch), and the import of the logger that only the
+ * old initializer used goes. It fails, naming what it looked for, when auth ships something else, so a
+ * seam that moved is not edited blind.
+ */
+export function wireEmailIntoAuth(source: string, scope: string): string {
+  const initializer = "export const mailer: AuthMailer = unconfiguredMailer(apiLogger);";
+  const logger = `import { logger as apiLogger } from "${scope}/api/lib/logger";\n`;
+  for (const looked of [initializer, logger.trimEnd()]) {
+    if (!source.includes(looked)) {
+      throw new Error(`${MAILER_FILE} has no \`${looked}\`: the intention describes another file`);
+    }
+  }
+  return source
+    .replace(initializer, "export const mailer: AuthMailer = emailMailer;")
+    .replace(logger, "");
+}
+
+/**
+ * The Validation of that intention: a test in `packages/auth` that runs auth's own flows with the
+ * `mailer` auth exports, and reads what the email package delivered. It is the wiring that is proved
+ * (auth's `mailer` is the email module's, so a sign-up sends the verification email and a reset request
+ * sends the reset one, each with a link that works), not the email package, which has tests of its own.
+ */
+export function wiredTest(scope: string): string {
+  return `import { beforeEach, expect, test } from "bun:test";
+import { clearOutbox, outbox } from "${scope}/email/testing";
+import { mailer } from "./mailer";
+import { createTestAuth } from "./testing";
+
+const PASSWORD = "correct horse battery staple";
+
+beforeEach(clearOutbox);
+
+/** The link of the page the email opens: the first href of the html that was sent. */
+function linkOf(html: string): URL {
+  return new URL(/href="([^"]+)"/.exec(html)?.[1] ?? "");
+}
+
+async function signUpAndVerify(email: string) {
+  const { auth, call } = await createTestAuth({ mailer });
+  const signUp = await call("/sign-up/email", { body: { email, password: PASSWORD, name: "Ada" } });
+  expect(signUp.status).toBe(200);
+  expect(outbox.map(({ to, subject }) => [to, subject])).toEqual([
+    [email, "Verify your email address"],
+  ]);
+  const link = linkOf(outbox[0]?.html ?? "");
+  expect(link.origin + link.pathname).toBe("http://spa.test/auth/verify-email");
+  await auth.api.verifyEmail({ query: { token: link.searchParams.get("token") ?? "" } });
+  return { call };
+}
+
+test("a sign-up is sent the verification email, and its link verifies the user", async () => {
+  const { call } = await signUpAndVerify("ada@example.com");
+
+  const signIn = await call("/sign-in/email", {
+    body: { email: "ada@example.com", password: PASSWORD },
+  });
+  expect(signIn.status).toBe(200);
+});
+
+test("a password reset request is sent the reset email, with the page that takes the token", async () => {
+  const { call } = await signUpAndVerify("grace@example.com");
+  clearOutbox();
+
+  const reset = await call("/request-password-reset", { body: { email: "grace@example.com" } });
+
+  expect(reset.status).toBe(200);
+  expect(outbox.map(({ to, subject }) => [to, subject])).toEqual([
+    ["grace@example.com", "Reset your password"],
+  ]);
+  const link = linkOf(outbox[0]?.html ?? "");
+  expect(link.origin + link.pathname).toBe("http://spa.test/auth/reset-password");
+  expect(link.searchParams.get("token")).toBeTruthy();
+});
+`;
+}
+
+/**
+ * How golden resolves an intention the way an executor does (065): applies the edit its document
+ * describes, and adds the test its Validation names. Recording it is the caller's, once the project's
+ * typecheck and tests, which run that test, have passed.
+ */
+export type Resolution = {
+  /** The module that ships the intention, whose `bg add` stages it. */
+  module: string;
+  /** The module that owns the file the edit lands in: it has to survive its own re-add. */
+  editedOwner: string;
+  apply(project: string): Promise<void>;
+};
+
+export const RESOLUTIONS: Readonly<Record<string, Resolution>> = {
+  "email/resend/wire-email-into-auth": {
+    module: "email/resend",
+    editedOwner: "auth/better-auth",
+    async apply(project) {
+      const file = join(project, MAILER_FILE);
+      await Bun.write(file, wireEmailIntoAuth(await Bun.file(file).text(), SCOPE));
+      await Bun.write(join(project, WIRED_TEST_FILE), wiredTest(SCOPE));
+    },
+  },
+};
+
+/** The way to resolve a pending intention: one golden does not know is a failed run, not a skipped one. */
+function resolution(id: string): Resolution {
+  const found = Object.hasOwn(RESOLUTIONS, id) ? RESOLUTIONS[id] : undefined;
+  if (found === undefined) {
+    throw new Error(
+      `${id} is pending and golden does not know how to resolve it: add it to RESOLUTIONS`,
+    );
+  }
+  return found;
 }
 
 /**
@@ -907,6 +1079,7 @@ async function configured(
   const { name, modules } = configuration;
   const installed = configuration.items ? options.items : [];
   const patched = PATCHED[name] ?? {};
+  const pending = PENDING[name] ?? [];
   const project = join(work, `golden-${name}`);
   const step = <T>(label: string, body: () => Promise<T>) =>
     phase(timings, `${name}: ${label}`, body);
@@ -955,6 +1128,7 @@ async function configured(
     process.stdout.write(stdout);
     const reported = readAddedModules(stdout, modules);
     expectPatches(reported, "applied", patched);
+    expectPending(readPendingIntentions(stdout), pending);
     expectRegionsRecorded(JSON.parse(await Bun.file(join(project, "bg.json")).text()), reported);
     return reported;
   });
@@ -963,6 +1137,8 @@ async function configured(
     const before = await snapshot(project);
     const stdout = await capture(bg(...addArguments(modules, installed)), project);
     expectPatches(readAddedModules(stdout, modules), "skipped", patched);
+    // Staged again, and the same bytes: the intention is still pending, and nothing moved.
+    expectPending(readPendingIntentions(stdout), pending);
     const changed = diffTrees(before, await snapshot(project));
     if (changed.length > 0) {
       throw new Error(`the same \`bg add\` again changed the project: ${changed.join(", ")}`);
@@ -985,6 +1161,16 @@ async function configured(
       }
     }
   });
+  // What an executor does with each pending intention (065), once every install is known to be stable:
+  // the edit its document describes, and the test its Validation names. Recording waits for that
+  // Validation, which is the project's own typecheck, tests and check below.
+  if (pending.length > 0) {
+    await step("intentions: apply", async () => {
+      for (const id of pending) {
+        await resolution(id).apply(project);
+      }
+    });
+  }
   await step("install", () => run([BUN, "install"], project));
   await step("typecheck", () => run([BUN, "run", "typecheck"], project));
   await step("test", async () => {
@@ -993,13 +1179,50 @@ async function configured(
     if (hasAuth(configuration)) {
       expectRan(ran, `${SCOPE}/auth`, AUTH_MIN_TESTS);
     }
+    if (hasEmail(configuration)) {
+      expectRan(ran, `${SCOPE}/email`, EMAIL_MIN_TESTS);
+    }
     const counts = Object.entries(ran);
     console.log(
       `golden: tests run: ${counts.map(([workspace, ran]) => `${workspace} ${ran}`).join(", ")}`,
     );
   });
   await step("build", () => run([BUN, "run", "build"], project));
+  // Typecheck, test and build passed with the edit and its test in place, and the formatter has to
+  // accept the edit too: that is the intention's Validation, so it is recorded now and not before.
+  if (pending.length > 0) {
+    await step("intentions: record", async () => {
+      await run([BUN, "run", "check"], project);
+      for (const id of pending) {
+        await run(bg("record", id), project);
+      }
+    });
+  }
   await step("doctor", () => run(bg("doctor", "--strict"), project));
+  // The owner of the file the edit landed in, and the module that shipped the intention, asked for again:
+  // the edit is the project's by now, so each has to keep it, skip its patches, stage nothing and change nothing.
+  if (pending.length > 0) {
+    await step("intentions: re-add", async () => {
+      for (const id of pending) {
+        const { module, editedOwner } = resolution(id);
+        for (const owner of [module, editedOwner]) {
+          const before = await snapshot(project);
+          const stdout = await capture(bg(...addArguments([owner], [])), project);
+          const expected = Object.fromEntries(
+            Object.entries(patched).filter(([key]) => key === owner),
+          );
+          expectPatches(readAddedModules(stdout, [owner]), "skipped", expected);
+          expectPending(readPendingIntentions(stdout), []);
+          const changed = diffTrees(before, await snapshot(project));
+          if (changed.length > 0) {
+            throw new Error(
+              `\`bg add ${owner}\` after ${id} was recorded changed the project: ${changed.join(", ")}`,
+            );
+          }
+        }
+      }
+    });
+  }
   if (hasAuth(configuration)) {
     await regenerated(project, timings, name);
   }

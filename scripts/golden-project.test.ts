@@ -27,8 +27,17 @@ import {
   GOLDEN_BARREL_LINE,
   GOLDEN_TABLE,
   AUTH_MIN_TESTS,
+  EMAIL_MIN_TESTS,
+  expectPending,
   hasAuth,
   hasDatabase,
+  hasEmail,
+  MAILER_FILE,
+  PENDING,
+  readPendingIntentions,
+  RESOLUTIONS,
+  wiredTest,
+  wireEmailIntoAuth,
   WITHOUT_ORM,
   MODULES,
   PATCHED,
@@ -211,6 +220,7 @@ describe("the golden project and modules", () => {
       "web/spa",
       "web/ssr",
       "web/static",
+      "email/resend",
       "provider/dockerfile",
     ]);
   });
@@ -491,6 +501,7 @@ describe("the golden project and patches", () => {
         "web/spa": ["scripts.deploy", "scripts.dev"],
         "web/ssr": ["scripts.deploy", "scripts.dev"],
         "web/static": ["scripts.deploy", "scripts.dev"],
+        "email/resend": ["dependencies.@app/email", "imports[@app/email]"],
       },
       dockerfile: {
         "config/branding": ["scripts.gen:branding"],
@@ -959,5 +970,150 @@ describe("the auth phases", () => {
   test("the project the refusal runs in has every peer of auth but the orm", () => {
     expect(WITHOUT_ORM).toEqual(["provider/cloudflare", "config/branding", "api/elysia", "db/d1"]);
     expect(WITHOUT_ORM).not.toContain("orm/drizzle");
+  });
+});
+
+describe("the email phases", () => {
+  test("every configuration installs email, and only the one with auth has anything to wire", () => {
+    expect(CONFIGURATIONS.filter(hasEmail).map(({ name }) => name)).toEqual([
+      "cloudflare",
+      "dockerfile",
+    ]);
+    expect(hasEmail({ name: "a", modules: ["api/elysia"], items: false })).toBe(false);
+    // The dockerfile project has no db, so no auth: email installs there on its own, and cleanly.
+    expect(CONFIGURATIONS.find(({ name }) => name === "dockerfile")?.modules).not.toContain(
+      "auth/better-auth",
+    );
+  });
+
+  test("the cloudflare configuration has auth and email, which wires itself into it", () => {
+    const modules = CONFIGURATIONS.find(({ name }) => name === "cloudflare")?.modules ?? [];
+
+    expect(modules).toContain("email/resend");
+    expect(modules).toContain("auth/better-auth");
+  });
+
+  test("the floor of email tests is what the package has, so a package the root test skipped fails the run", async () => {
+    const dir = join(resolve(import.meta.dir, ".."), "registry/modules/email/resend/template");
+    let tests = 0;
+    for await (const path of new Bun.Glob("packages/email/src/**/*.test.ts").scan({ cwd: dir })) {
+      const text = await Bun.file(join(dir, path)).text();
+      tests += [...text.matchAll(/^\s*(?:test|it)(?:\.each\([\s\S]*?\))?\(/gm)].length;
+    }
+
+    expect(EMAIL_MIN_TESTS).toBeGreaterThan(0);
+    // `test.each` counts its rows at run time: the floor is what the project ran, never more than that.
+    expect(tests).toBeGreaterThanOrEqual(EMAIL_MIN_TESTS - 2);
+  });
+
+  describe("PENDING (050 step 14: what `bg add` leaves for an executor, per configuration)", () => {
+    test("is the intentions the selected variants ship, and golden knows how to resolve each", async () => {
+      const root = resolve(import.meta.dir, "..");
+      const catalog = await loadLocalRegistry(join(root, "registry/registry.json"));
+
+      for (const { name, modules } of CONFIGURATIONS) {
+        const shipped: string[] = [];
+        for (const { manifest } of catalog.modules) {
+          if (!modules.includes(`${manifest.category}/${manifest.id}`)) {
+            continue;
+          }
+          const [variant] = manifest.variants
+            .filter((candidate) =>
+              Object.entries(candidate.match).every(([category, id]) =>
+                modules.includes(`${category}/${id}`),
+              ),
+            )
+            .sort((a, b) => Object.keys(b.match).length - Object.keys(a.match).length);
+          for (const file of variant?.intent ?? []) {
+            shipped.push(`${manifest.category}/${manifest.id}/${file.replace(/^\d+-|\.md$/g, "")}`);
+          }
+        }
+        expect({ [name]: PENDING[name] }).toEqual({ [name]: shipped.sort() });
+      }
+      expect(PENDING).toEqual({
+        cloudflare: ["email/resend/wire-email-into-auth"],
+        dockerfile: [],
+      });
+      expect(Object.keys(RESOLUTIONS)).toEqual(["email/resend/wire-email-into-auth"]);
+    });
+  });
+
+  describe("readPendingIntentions", () => {
+    const out = (pendingIntentions: unknown) => JSON.stringify({ modules: [], pendingIntentions });
+
+    test("reads the ids `bg add` printed, in order, and none when there are none", () => {
+      expect(readPendingIntentions(out([{ id: "a/b/c" }, { id: "a/b/d" }]))).toEqual([
+        "a/b/c",
+        "a/b/d",
+      ]);
+      expect(readPendingIntentions(out([]))).toEqual([]);
+    });
+
+    test("fails on output that is not JSON, or has no list, or an entry with no id", () => {
+      expect(() => readPendingIntentions("nope")).toThrow(/did not print JSON/);
+      expect(() => readPendingIntentions("{}")).toThrow(/no `pendingIntentions` array/);
+      expect(() => readPendingIntentions(out([{}]))).toThrow(/without an id/);
+    });
+  });
+
+  describe("expectPending", () => {
+    test("passes on the ids expected, in any order", () => {
+      expect(() => expectPending(["b", "a"], ["a", "b"])).not.toThrow();
+      expect(() => expectPending([], [])).not.toThrow();
+    });
+
+    test("fails on an intention nobody expected: a variant that gained one is a decision made in golden", () => {
+      expect(() => expectPending(["a"], [])).toThrow(/pending \[a\], golden expects \[\]/);
+    });
+
+    test("fails on an expected one that is not pending: a wiring that never staged", () => {
+      expect(() => expectPending([], ["a"])).toThrow(/pending \[\], golden expects \[a\]/);
+    });
+  });
+
+  describe("wireEmailIntoAuth (the edit the intention describes, as an executor makes it)", () => {
+    const before = [
+      'import { logger as apiLogger } from "@app/api/lib/logger";',
+      'import type { AuthLogger } from "./auth.config";',
+      'import { emailMailer } from "@app/email";',
+      "",
+      "export const mailer: AuthMailer = unconfiguredMailer(apiLogger);",
+      "",
+    ].join("\n");
+
+    test("replaces the initializer of mailer, and drops the logger import only it used", () => {
+      expect(wireEmailIntoAuth(before, "@app")).toBe(
+        [
+          'import type { AuthLogger } from "./auth.config";',
+          'import { emailMailer } from "@app/email";',
+          "",
+          "export const mailer: AuthMailer = emailMailer;",
+          "",
+        ].join("\n"),
+      );
+    });
+
+    test("fails, naming what it looked for, when auth ships another seam: a stale edit is not applied", () => {
+      expect(() => wireEmailIntoAuth("export const mailer = other;\n", "@app")).toThrow(
+        /unconfiguredMailer\(apiLogger\)/,
+      );
+      expect(() =>
+        wireEmailIntoAuth(before.replace("@app/api/lib/logger", "@other/api/lib/logger"), "@app"),
+      ).toThrow(/@app\/api\/lib\/logger/);
+      expect(MAILER_FILE).toBe("packages/auth/src/mailer.ts");
+    });
+  });
+
+  describe("wiredTest (the proof that auth delivers through the email module)", () => {
+    test("signs a user up through the mailer auth exports, and reads the outbox of the email package", () => {
+      const proof = wiredTest("@app");
+
+      expect(proof).toContain('import { mailer } from "./mailer";');
+      expect(proof).toContain('from "@app/email/testing"');
+      expect(proof).toContain("createTestAuth({ mailer })");
+      expect(proof).toContain("Verify your email address");
+      expect(proof).toContain("Reset your password");
+      expect(proof).not.toContain("{{SCOPE}}");
+    });
   });
 });
