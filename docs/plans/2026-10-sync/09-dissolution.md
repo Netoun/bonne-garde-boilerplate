@@ -316,6 +316,31 @@ templates/base | grep vite.config` prints nothing; `bg list --items` prints what
 
 ### Stage 5: `email`, `queue`, `storage` (080 step 5). Waits for nothing new (no `EMAIL` binding, settled in 07).
 
+**Done 2026-11-14** (`3ccc6ef`..`3757c9e`). **`email/resend`** is `packages/email`, with a `memory` adapter (chosen under `NODE_ENV=test` only) and a Resend adapter on plain `fetch`, which is tested against a real `Bun.serve` instead of the `resend` SDK. `RESEND_API_KEY` is email's: neither provider declares it. The module installs in both configurations. It has two variants: `default`, and `better-auth`, selected when auth is installed. The `better-auth` variant wires auth's `mailer` seam with two patches (`package.dependencies` on `packages/auth`, and `ts.addImport` into `mailer.ts`) plus the first shipped tier-3 intention, `email/resend/wire-email-into-auth`. Golden resolves that intention the way an executor would, then runs `bg record`. Two proof tests show that sign-up and password reset go through the email `outbox`. Engine work it needed:
+
+- A variant's `intent/` is planned and staged as written, and stays pending until `bg record`.
+- `bg intentions lint` covers `registry/modules/**/intent/`.
+- `pack-cli` rewrites a workspace import from the path of the file that holds it.
+- `ts.addImport` and `ts.addNamedExport` keep a declaration of one name on one line, at any width.
+- `tooling/vite-plus` leaves `bg.json` unformatted (user's answer).
+
+**`storage/r2`** is `packages/storage` (`peers` provider `cloudflare`, `db`, `orm`, `auth`). It owns `BUCKET` (`r2_buckets` by `jsonc.merge`) and `R2_PUBLIC_URL`, which is read per request so the shell boots without it. It serves at `/v1/media` and re-exports `medias` from the barrel. It runs on real Miniflare R2 and real SQLite: 63 tests against the legacy 44. The `dockerfile` configuration refuses it naming the provider. Golden runs 193 tests in the `cloudflare` project: storage 63, auth 47, api 33, email 19, db 12, api-runtime 7, config 6, ssr 4, spa 1, static 1.
+
+**Decided by the user (2026-11-14), not built yet (5b):**
+
+- 035 gains the optional peer: a `match` may name a category that `peers` does not, and that variant applies only when that category is installed.
+- Closing an intention stops another module's file it edited from reading as drift. The mechanism is under review: a re-hash would let the owner's re-add overwrite the edit.
+- The dockerfile `compose.yaml` forwards `.env` generically through `env_file` and names no module's key.
+
+**Open:**
+
+- the dockerfile runtime still fills `R2_PUBLIC_URL`, though no installed module reads it there;
+- auth's `db:reset` fails once a `medias` row exists (`author_id` has no cascade);
+- the cloudflare provider README still describes R2 as its own;
+- storage's `testing.ts` repeats auth's sign-in flow because `createTestAuth` takes no `db`;
+- installing auth after email wires nothing until `bg add email/resend` runs again;
+- lint stays red between `bg add` and `bg record`, because of the unused import.
+
 - **Scope:** `storage/r2` (row 15) and `email/resend` (row 16, renamed `emails` to `email`). `queue`
   has nothing to extract. The `cloudflare` email adapter is the `EMAIL` binding AGENTS.md forbids,
   so it does not ship (settled in 07); the adapters are `memory` and Resend.
