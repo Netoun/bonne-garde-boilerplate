@@ -101,6 +101,15 @@ describe("ts.addImport: addImport", () => {
     );
   });
 
+  test("a single name stays on one line however long it is: the formatter never breaks one specifier", () => {
+    const specifier = `@${"a".repeat(64)}/email`;
+
+    const after = addImport("a.ts", 'import a from "a";\n', specifier, ["emailMailer"]);
+
+    expect(after).toBe(`import a from "a";\nimport { emailMailer } from "${specifier}";\n`);
+    expect(after.split("\n")[1]?.length).toBeGreaterThan(100);
+  });
+
   test("a file with no import gets it first, after a shebang, and a blank line", () => {
     expect(addImport("a.ts", "export const b = 1;\n", "x", ["y"])).toBe(
       'import { y } from "x";\n\nexport const b = 1;\n',

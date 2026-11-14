@@ -48,6 +48,16 @@ describe("ts.addImport writes what the formatter writes", () => {
     await expectStable({ "a.ts": first, "b.ts": grown });
   });
 
+  test("a lone name past 100 columns stays on one line, which is where the formatter keeps it: a scope as long as create takes", async () => {
+    const specifier = `@${"a".repeat(64)}/email`;
+    const text = 'import a from "a";\n\nexport const b = a;\n';
+
+    const patched = addImport("a.ts", text, specifier, ["emailMailer"]);
+
+    expect(patched.split("\n").some((line) => line.length > 100)).toBe(true);
+    await expectStable({ "a.ts": patched });
+  });
+
   test("an existing declaration that gains a name and still fits, beside a default import", async () => {
     const merged = addImport("a.ts", 'import X, { a } from "x";\nexport { X, a };\n', "x", ["b"]);
 
@@ -79,5 +89,14 @@ describe("ts.addNamedExport writes what the formatter writes", () => {
     const grown = addNamedExport("b.ts", 'export { one } from "./one";\n', "./one", names);
 
     await expectStable({ "a.ts": wide, "b.ts": grown });
+  });
+
+  test("a lone name past 100 columns stays on one line here too: the formatter keeps an export of one name whole", async () => {
+    const specifier = `@${"a".repeat(64)}/email/a-very-long-subpath`;
+
+    const patched = addNamedExport("a.ts", 'export * from "./all";\n', specifier, ["emailMailer"]);
+
+    expect(patched.split("\n").some((line) => line.length > 100)).toBe(true);
+    await expectStable({ "a.ts": patched });
   });
 });

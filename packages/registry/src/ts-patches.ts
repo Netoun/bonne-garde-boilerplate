@@ -100,11 +100,15 @@ function hasComment(text: string): boolean {
   return false;
 }
 
-/** `import { a, b } from "x";`, or one name per line with a trailing comma when that is over the width. */
+/**
+ * `import { a, b } from "x";`, or one name per line with a trailing comma when that is over the width.
+ * One name is never broken, however long the line: the formatter keeps a lone specifier in its braces
+ * on one line, and a longer scope than `@acme` is what makes that line long.
+ */
 function declarationText(kind: Kind, names: string[], specifier: string, eol: string): string {
   const tail = `} from ${JSON.stringify(specifier)};`;
   const oneLine = `${kind} { ${names.join(", ")} ${tail}`;
-  return oneLine.length <= PRINT_WIDTH
+  return oneLine.length <= PRINT_WIDTH || names.length === 1
     ? oneLine
     : `${kind} {${eol}${names.map((name) => `  ${name},${eol}`).join("")}${tail}`;
 }
