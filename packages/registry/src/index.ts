@@ -37,7 +37,12 @@ export {
   type PlannedPatch,
   type ScriptsMergePatch,
 } from "./patch-plan";
-export { patchIntentId, patchIntentText, type PendingIntention } from "./pending-intentions";
+export {
+  patchIntentId,
+  patchIntentText,
+  type AuthoredIntention,
+  type PendingIntention,
+} from "./pending-intentions";
 export { loadNamedModules, readPlanFiles } from "./remote-install";
 export { readInstalledModuleManifest, type ModuleManifestLookup } from "./read-module-manifest";
 export {

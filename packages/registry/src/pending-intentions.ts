@@ -24,6 +24,22 @@ export type PendingIntention = {
   checks: string[];
 };
 
+/**
+ * An intention a module authors under `intent/` (065), for the part of its wiring no patch of the
+ * catalog can express. Planned from the selected variant, so a variant that has nothing to wire
+ * declares none; staged as written, with the scope rendered, and pending until `bg record` closes it.
+ */
+export type AuthoredIntention = {
+  /** `<category>/<module-id>/<slug>`, the frontmatter id. */
+  id: string;
+  /** `<category>/<module-id>` of the module that ships it. */
+  module: string;
+  /** The first heading of the document: what `add` prints beside the id. */
+  title: string;
+  /** The whole document, with `{{SCOPE}}` rendered. */
+  document: string;
+};
+
 const kebab = (text: string): string =>
   text
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")

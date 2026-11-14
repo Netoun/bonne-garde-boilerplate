@@ -25,6 +25,8 @@ type ModuleSpec = {
   json?: Record<string, unknown>;
   /** Files under `template/`, by path. */
   template?: Record<string, string>;
+  /** Files under `intent/`, by file name. */
+  intent?: Record<string, string>;
 };
 
 async function write(path: string, content: string): Promise<void> {
@@ -43,7 +45,7 @@ async function registry(modules: ModuleSpec[], itemNames: string[] = []): Promis
       items: itemNames.map((name) => ({ name, type: "registry:lib" })),
     }),
   );
-  for (const { category, id, json, template } of modules) {
+  for (const { category, id, json, template, intent } of modules) {
     const dir = join(root, "modules", category, id);
     await write(
       join(dir, "module.json"),
@@ -58,6 +60,9 @@ async function registry(modules: ModuleSpec[], itemNames: string[] = []): Promis
     );
     for (const [path, content] of Object.entries(template ?? {})) {
       await write(join(dir, "template", path), content);
+    }
+    for (const [name, content] of Object.entries(intent ?? {})) {
+      await write(join(dir, "intent", name), content);
     }
   }
   return loadLocalRegistry(join(root, "registry.json"));
@@ -1314,16 +1319,6 @@ describe("resolveModulePlans: what is not supported yet fails loudly", () => {
     );
   });
 
-  test("an intention is refused, since nothing would stage it", async () => {
-    const catalog = await withVariant({ intent: ["01-wire.md"] });
-
-    await expect(
-      resolveModulePlans(catalog, [{ category: "api", id: "elysia" }], project()),
-    ).rejects.toThrow(
-      /api\/elysia declares intentions \(01-wire\.md\): staging them is not supported yet/,
-    );
-  });
-
   test("a variant that is not selected may declare both", async () => {
     const catalog = await registry([
       {
@@ -1350,5 +1345,94 @@ describe("resolveModulePlans: what is not supported yet fails loudly", () => {
     );
 
     expect(plan?.variant).toBe("default");
+  });
+});
+
+describe("resolveModulePlans: the intentions a module authors under intent/ (065)", () => {
+  const wire = (id = "email/resend/wire-email-into-auth") =>
+    `---\nid: ${id}\nkind: install\ndomain: email\nclassification: migration\n---\n\n# Send auth's emails through {{SCOPE}}/email\n\n## Goal\n\nImport from {{SCOPE}}/email.\n`;
+  const email = (intent: Record<string, string>, variant: Record<string, unknown> = {}) =>
+    registry([
+      CLOUDFLARE,
+      {
+        category: "email",
+        id: "resend",
+        json: {
+          peers: { provider: [] },
+          variants: [
+            { key: "default", match: {} },
+            {
+              key: "with-auth",
+              match: { auth: "better-auth" },
+              intent: ["01-wire-email-into-auth.md"],
+              ...variant,
+            },
+          ],
+        },
+        intent,
+      },
+    ]);
+  const plan = async (
+    catalog: RegistryCatalog,
+    installed: Partial<Record<ModuleCategory, string[]>>,
+  ) =>
+    (
+      await resolveModulePlans(
+        catalog,
+        [{ category: "email", id: "resend" }],
+        project({ provider: ["cloudflare"], ...installed }),
+      )
+    )[0];
+
+  test("is planned with the id of its document, the module it belongs to, its title and its text with the scope rendered", async () => {
+    const catalog = await email({ "01-wire-email-into-auth.md": wire() });
+
+    const planned = await plan(catalog, { auth: ["better-auth"] });
+
+    expect(planned?.variant).toBe("with-auth");
+    expect(planned?.intentions).toEqual([
+      {
+        id: "email/resend/wire-email-into-auth",
+        module: "email/resend",
+        title: "Send auth's emails through @demo/email",
+        document: wire().replaceAll("{{SCOPE}}", "@demo"),
+      },
+    ]);
+  });
+
+  test("is not planned for the variant that declares none: an email module with no auth has nothing to wire", async () => {
+    const catalog = await email({ "01-wire-email-into-auth.md": wire() });
+
+    expect((await plan(catalog, {}))?.intentions).toEqual([]);
+  });
+
+  test("is planned in the order of its NN- prefix, whatever order the variant lists them in", async () => {
+    const catalog = await email(
+      {
+        "01-wire-email-into-auth.md": wire(),
+        "02-then.md": wire("email/resend/then").replace("wire-email-into-auth", "then"),
+      },
+      { intent: ["02-then.md", "01-wire-email-into-auth.md"] },
+    );
+
+    expect(
+      (await plan(catalog, { auth: ["better-auth"] }))?.intentions.map(({ id }) => id),
+    ).toEqual(["email/resend/wire-email-into-auth", "email/resend/then"]);
+  });
+
+  test("a file the variant names and intent/ does not hold is refused, naming it", async () => {
+    const catalog = await email({});
+
+    await expect(plan(catalog, { auth: ["better-auth"] })).rejects.toThrow(
+      /email\/resend names the intention 01-wire-email-into-auth\.md, which its intent\/ does not hold/,
+    );
+  });
+
+  test("a document whose id is not the module's, or whose frontmatter is wrong, is refused before anything is written", async () => {
+    const catalog = await email({ "01-wire-email-into-auth.md": wire("email/other/wire") });
+
+    await expect(plan(catalog, { auth: ["better-auth"] })).rejects.toThrow(
+      /email\/resend: 01-wire-email-into-auth\.md: id must be email\/resend\/wire-email-into-auth, got email\/other\/wire/,
+    );
   });
 });

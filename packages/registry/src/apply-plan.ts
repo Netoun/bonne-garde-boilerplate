@@ -12,7 +12,7 @@ import type { ModulePlan } from "./module-plan";
 import { itemFileTarget, type InstallPlan } from "./resolve-plan";
 import { sha256Hex } from "./sha256";
 import { stageModules, type EnvResult, type TookOver } from "./stage-module";
-import type { PendingIntention } from "./pending-intentions";
+import type { AuthoredIntention, PendingIntention } from "./pending-intentions";
 import type { PatchReport } from "./stage-patches";
 import { writeAllOrNothing, type StagedFile } from "./write-tree";
 
@@ -47,6 +47,12 @@ export type ApplyResult = {
    * `bg.json` already records as applied or skipped. Staging them under `.bg/` is the caller's.
    */
   pending: PendingIntention[];
+  /**
+   * The intentions the installed modules author (065), minus the ones `bg.json` already records as
+   * applied or skipped. They are pending from the day the module is added, so nothing in the tree
+   * says they are: staging them is the caller's, and `bg record` is what closes them.
+   */
+  authored: AuthoredIntention[];
 };
 
 async function pathExists(path: string): Promise<boolean> {
@@ -124,7 +130,10 @@ function withModules(
 }
 
 /** An intention `bg.json` records as applied or skipped for its module is a decision, not a gap. */
-function isResolved(manifest: ProjectManifest, { id, module }: PendingIntention): boolean {
+function isResolved(
+  manifest: ProjectManifest,
+  { id, module }: Pick<PendingIntention, "id" | "module">,
+): boolean {
   const [category, moduleId] = module.split("/");
   const records = isModuleCategory(category) ? (manifest.modules[category] ?? []) : [];
   const record = records.find((entry) => entry.id === moduleId);
@@ -210,6 +219,9 @@ export async function applyInstallPlan(options: ApplyOptions): Promise<ApplyResu
     env: staging.env,
     patches: staging.patches,
     pending: staging.pending.filter((intention) => !isResolved(options.manifest, intention)),
+    authored: modules
+      .flatMap(({ intentions }) => intentions)
+      .filter((intention) => !isResolved(options.manifest, intention)),
   };
 
   if (options.dryRun) {

@@ -233,6 +233,57 @@ describe("a module planned from github", () => {
     ).rejects.toThrow(/packages\/x\/\*\*.*glob.*github:acme\/bg@v1/);
   });
 
+  describe("the intentions a module authors, read from intent/ like a template file", () => {
+    const DOCUMENT =
+      "---\nid: provider/wired/wire-it\nkind: install\ndomain: provider\nclassification: migration\n---\n\n# Wire it into {{SCOPE}}\n";
+    const wired = (files: Record<string, string> = {}) =>
+      registryOf({
+        "registry.json": JSON.stringify({ name: "r", items: [] }),
+        "modules/provider/wired/module.json": JSON.stringify({
+          id: "wired",
+          category: "provider",
+          title: "wired",
+          description: "wired",
+          peers: {},
+          variants: [{ key: "default", match: {}, intent: ["01-wire-it.md"] }],
+        }),
+        ...files,
+      });
+
+    test("is fetched by its path under the module and planned with the scope rendered", async () => {
+      const raw = serve(await wired({ "modules/provider/wired/intent/01-wire-it.md": DOCUMENT }));
+      const catalog = await loadNamedModules(await remote(raw), ["provider/wired"]);
+      raw.requested.length = 0;
+
+      const [plan] = await resolveModulePlans(
+        catalog,
+        [{ category: "provider", id: "wired" }],
+        PROJECT,
+      );
+
+      expect(raw.requested).toEqual(["modules/provider/wired/intent/01-wire-it.md"]);
+      expect(plan?.intentions).toEqual([
+        {
+          id: "provider/wired/wire-it",
+          module: "provider/wired",
+          title: "Wire it into @demo",
+          document: DOCUMENT.replaceAll("{{SCOPE}}", "@demo"),
+        },
+      ]);
+    });
+
+    test("a file the registry does not have fails the plan, naming the module and the file", async () => {
+      const raw = serve(await wired());
+      const catalog = await loadNamedModules(await remote(raw), ["provider/wired"]);
+
+      await expect(
+        resolveModulePlans(catalog, [{ category: "provider", id: "wired" }], PROJECT),
+      ).rejects.toThrow(
+        /provider\/wired names the intention 01-wire-it\.md, which its intent\/ does not hold/,
+      );
+    });
+  });
+
   test("a `copy` that climbs out of the project is refused when the module is read", async () => {
     const dir = await registryOf({
       "registry.json": JSON.stringify({ name: "r", items: [] }),

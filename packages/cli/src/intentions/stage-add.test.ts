@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { PendingIntention } from "@bonne-garde/registry";
+import type { AuthoredIntention, PendingIntention } from "@bonne-garde/registry";
 import { parseFrontmatter } from "./lint";
 import { intentionDocument, sessionDocument, stagePendingIntentions } from "./stage-add";
 import { readStagedIntentions } from "./staged";
@@ -37,6 +37,14 @@ const other = () =>
     type: "ts.addImport",
     gaps: ["imports[@app/auth] of apps/api/src/app.ts is { authModule }"],
   });
+
+const WIRE_ID = "email/resend/wire-email-into-auth";
+const WIRE: AuthoredIntention = {
+  id: WIRE_ID,
+  module: "email/resend",
+  title: "Send auth emails through @app/email",
+  document: `---\nid: ${WIRE_ID}\nkind: install\ndomain: email\nclassification: migration\n---\n\n# Send auth emails through @app/email\n\n## Goal\n\nWire it.\n`,
+};
 
 describe("the intention a failed patch becomes (065)", () => {
   test("is a document the intention parser reads: id, kind, domain, classification", () => {
@@ -180,5 +188,50 @@ describe("stagePendingIntentions", () => {
     await stagePendingIntentions(root, [other()], new Set());
 
     expect(await readFile(join(root, ".bg/add/blocked.md"), "utf8")).toBe("stuck\n");
+  });
+});
+
+describe("an intention a module authors (065)", () => {
+  test("is staged as the module wrote it, under NN-<slug>.md, and the reader that doctor and record use finds it", async () => {
+    const root = await project();
+
+    const staged = await stagePendingIntentions(root, [WIRE], new Set());
+
+    expect(staged).toEqual({
+      session: ".bg/add/session.md",
+      files: [{ id: WIRE_ID, file: ".bg/add/01-wire-email-into-auth.md" }],
+    });
+    expect(await readFile(join(root, ".bg/add/01-wire-email-into-auth.md"), "utf8")).toBe(
+      WIRE.document,
+    );
+    expect((await readStagedIntentions(root)).staged).toEqual([
+      { id: WIRE_ID, file: ".bg/add/01-wire-email-into-auth.md" },
+    ]);
+    expect(await readFile(join(root, ".bg/add/session.md"), "utf8")).toContain(
+      `- [ ] \`.bg/add/01-wire-email-into-auth.md\` — \`${WIRE_ID}\``,
+    );
+  });
+
+  test("is numbered after what is staged already, beside the intentions of failed patches, and staging again changes no byte", async () => {
+    const root = await project();
+    await stagePendingIntentions(root, [pending()], new Set());
+
+    await stagePendingIntentions(root, [pending(), WIRE], new Set());
+    const names = (await readdir(join(root, ".bg/add"))).sort();
+    const session = await readFile(join(root, ".bg/add/session.md"), "utf8");
+    await stagePendingIntentions(root, [WIRE, pending()], new Set());
+
+    expect(names).toEqual([
+      `01-${ID.split("/").at(-1)}.md`,
+      "02-wire-email-into-auth.md",
+      "session.md",
+    ]);
+    expect(await readFile(join(root, ".bg/add/session.md"), "utf8")).toBe(session);
+  });
+
+  test("the session says what an authored intention is for, not only a failed patch", () => {
+    expect(
+      sessionDocument([{ id: WIRE_ID, file: ".bg/add/01-wire-email-into-auth.md" }]),
+    ).toContain("an intention a module ships");
   });
 });

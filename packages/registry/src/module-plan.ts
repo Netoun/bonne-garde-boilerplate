@@ -4,6 +4,7 @@ import {
   categoryCardinality,
   isModuleCategory,
   MODULE_CATEGORIES,
+  readModuleIntention,
   type ModuleCategory,
   type ModuleManifest,
   type ModuleOptionValue,
@@ -12,6 +13,7 @@ import {
 } from "@bonne-garde/schema";
 import { FETCH_CONCURRENCY, RegistryFileNotFoundError } from "./github-source";
 import { byName } from "./package-dependencies";
+import type { AuthoredIntention } from "./pending-intentions";
 import { plannedPatches, type PlannedPatch } from "./patch-plan";
 import { mapLimit } from "./pool";
 import { PlanError, searchCatalog } from "./resolve-plan";
@@ -37,6 +39,8 @@ export type ModulePlan = {
   env: PlannedEnvKey[];
   /** Tier 2, as declared and checked: applied in the virtual tree, after every tier-1 file is known. */
   patches: PlannedPatch[];
+  /** Tier 3, as the module ships it: pending until recorded, in the order of their `NN-` prefix (065). */
+  intentions: AuthoredIntention[];
   dependencies: Record<string, string>;
   devDependencies: Record<string, string>;
   /** The workspace package `dependencies` are written into, when the variant declares one. */
@@ -244,14 +248,50 @@ function selectVariant(manifest: ModuleManifest, present: Present): ModuleVarian
   return winner;
 }
 
-/** Intentions cannot be staged yet: refused for the variant that was selected, never skipped. */
-function refuseUnsupported(key: string, variant: ModuleVariant): void {
-  const intents = variant.intent ?? [];
-  if (intents.length > 0) {
-    throw new PlanError(
-      `${key} declares intentions (${intents.join(", ")}): staging them is not supported yet, and a variant is never installed with one skipped`,
-    );
+/**
+ * Tier 3 (065): the intentions the selected variant names, read from the module's `intent/`, checked
+ * against the format (the id is the module's and the file's own) and rendered for the project's scope.
+ * A file that is not there is refused, not skipped, as a patch the CLI cannot apply is: a variant is
+ * never installed with part of its wiring left out in silence.
+ */
+async function authoredIntentions(
+  module: RegistryModule,
+  variant: ModuleVariant,
+  scope: string,
+): Promise<AuthoredIntention[]> {
+  const key = keyOf(module.manifest);
+  const { reader } = module;
+  const authored: AuthoredIntention[] = [];
+  // The `NN-` prefix is the execution order (065), so the file names sort into it.
+  for (const name of [...(variant.intent ?? [])].sort()) {
+    let source: string;
+    try {
+      source = reader
+        ? await reader.read(posix.join(module.dir, "intent", name))
+        : await readFile(join(module.dir, "intent", name), "utf8");
+    } catch (error) {
+      if (
+        error instanceof RegistryFileNotFoundError ||
+        (error instanceof Error && "code" in error && error.code === "ENOENT")
+      ) {
+        throw new PlanError(`${key} names the intention ${name}, which its intent/ does not hold`);
+      }
+      throw error;
+    }
+    let meta: ReturnType<typeof readModuleIntention>;
+    try {
+      meta = readModuleIntention(key, name, source);
+    } catch (error) {
+      throw new PlanError(`${key}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    authored.push({
+      id: meta.id,
+      module: key,
+      title: (meta.title ?? meta.id).replaceAll("{{SCOPE}}", scope),
+      document: source.replaceAll("{{SCOPE}}", scope),
+    });
   }
+  return authored;
 }
 
 async function isDirectory(path: string): Promise<boolean> {
@@ -461,7 +501,7 @@ async function planModule(
   const key = keyOf(manifest);
   const variant = selectVariant(manifest, present);
   const patches = plannedPatches(key, variant, project.scope);
-  refuseUnsupported(key, variant);
+  const intentions = await authoredIntentions(module, variant, project.scope);
 
   const copied = await copiedFiles(module, variant, project.scope);
   const packageJson = workspacePackageJson(manifest, variant, project.scope, copied);
@@ -478,6 +518,7 @@ async function planModule(
     options: resolveOptions(manifest),
     files,
     patches,
+    intentions,
     env: (variant.env ?? []).map((entry) => ({
       name: entry.name,
       required: entry.required ?? false,

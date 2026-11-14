@@ -4,8 +4,9 @@ import { checksNotice } from "./checks-notice";
 import { createProject } from "./create";
 import { doctorExitCode, formatDoctor, runDoctor } from "./doctor";
 import { lintIntentions } from "./intentions/lint";
+import { lintModuleIntentions } from "./intentions/lint-modules";
 import { listRegistry } from "./list";
-import { migrationsDir } from "./paths";
+import { migrationsDir, registryDir } from "./paths";
 import { recordIntentionOutcome } from "./record";
 
 function usage(): string {
@@ -23,7 +24,8 @@ Usage:
       (set GITHUB_TOKEN to lift the rate limit); with no @ref it reads the tag v<platform.version> of bg.json
   bg record <intention-id> [--skip "<reason>"]
   bg doctor [--json] [--strict]
-  bg intentions lint [--dir <migrations-dir>]
+  bg intentions lint [--dir <migrations-dir>] [--registry <registry-dir>]
+      the release migrations, and the intentions each module ships under its intent/
 `;
 }
 
@@ -181,13 +183,14 @@ export async function runCli(argv: string[]): Promise<number> {
               : `It is the pending intention ${intention}, ${where === undefined ? "dry run: nothing staged" : `staged in ${where}`}.`),
       );
     }
+    const pendingCount = result.pending.length + result.authored.length;
     if (staged !== null) {
       console.error(
-        `bg: ${result.pending.length} pending intention${result.pending.length === 1 ? "" : "s"}: ` +
+        `bg: ${pendingCount} pending intention${pendingCount === 1 ? "" : "s"}: ` +
           `read ${staged.session} and follow it (spec 065), then bg record <id> or bg record <id> --skip "<reason>".`,
       );
     }
-    const notice = checksNotice(modulePlans, result.pending.length);
+    const notice = checksNotice(modulePlans, pendingCount);
     if (notice !== null) {
       console.error(notice);
     }
@@ -217,15 +220,27 @@ export async function runCli(argv: string[]): Promise<number> {
               .map(({ module: _module, ...patch }) => patch),
           })),
           failedPatches,
-          pendingIntentions: result.pending.map(({ id, module, type, file, intent, reason }) => ({
-            id,
-            module,
-            type,
-            file,
-            intent,
-            reason,
-            staged: stagedAt.get(id) ?? null,
-          })),
+          pendingIntentions: [
+            ...result.pending.map(({ id, module, type, file, intent, reason }) => ({
+              id,
+              module,
+              type,
+              file,
+              intent,
+              reason,
+              staged: stagedAt.get(id) ?? null,
+            })),
+            // An intention a module ships is no failed patch: it has no patch type, file or reason.
+            ...result.authored.map(({ id, module, title }) => ({
+              id,
+              module,
+              type: null,
+              file: null,
+              intent: title,
+              reason: null,
+              staged: stagedAt.get(id) ?? null,
+            })),
+          ],
           session: staged?.session ?? null,
           written: result.written,
           skippedIdentical: result.skippedIdentical,
@@ -300,16 +315,24 @@ export async function runCli(argv: string[]): Promise<number> {
     }
     const args = [...restArgs];
     const dirOpt = takeOption(args, "--dir");
+    const registryOpt = takeOption(args, "--registry");
     const dir = dirOpt ?? migrationsDir();
     if (!dir) {
       throw new Error("migrations directory not found (pass --dir)");
     }
+    const registry = registryOpt ?? registryDir();
+    if (!registry) {
+      throw new Error("registry directory not found (pass --registry)");
+    }
+    // One linter for both producers (065): the release migrations, then the intentions of modules.
     const result = await lintIntentions(dir);
+    const modules = await lintModuleIntentions(registry);
     console.log(
       JSON.stringify(
         {
           ok: true,
           releases: result.releases,
+          modules,
         },
         null,
         2,

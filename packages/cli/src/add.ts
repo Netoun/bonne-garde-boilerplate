@@ -147,7 +147,7 @@ export async function addItems(options: AddOptions) {
   );
   const staged: StagedAdd | null = dryRun
     ? null
-    : await stagePendingIntentions(projectRoot, result.pending, resolved);
+    : await stagePendingIntentions(projectRoot, [...result.pending, ...result.authored], resolved);
 
   return { plan, modulePlans, result, migratedFrom, staged };
 }

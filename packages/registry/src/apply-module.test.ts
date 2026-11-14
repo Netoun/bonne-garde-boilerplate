@@ -30,6 +30,7 @@ function modulePlan(overrides: Partial<ModulePlan> = {}): ModulePlan {
     files: [{ target: "apps/api/wrangler.jsonc", content: '{ "name": "api" }\n' }],
     env: [],
     patches: [],
+    intentions: [],
     dependencies: {},
     devDependencies: {},
     workspace: null,
@@ -487,5 +488,65 @@ describe("applyInstallPlan: a module's workspace package", () => {
       /auth\/better-auth: workspace packages\/auth is not covered by the workspaces of package\.json \(apps\/\*\): registering it is a workspace\.add patch, which is not supported yet/,
     );
     expect(await snapshot(projectRoot)).toEqual(before);
+  });
+});
+
+describe("applyInstallPlan: the intentions a module authors (065, 050 step 14)", () => {
+  const WIRE = {
+    id: "provider/cloudflare/wire-it",
+    module: "provider/cloudflare",
+    title: "Wire it",
+    document: "---\nid: provider/cloudflare/wire-it\n---\n\n# Wire it\n",
+  };
+
+  test("are reported pending, once per module that plans them, and record nothing in bg.json", async () => {
+    const { projectRoot, manifest } = await freshProject();
+
+    const result = await install(projectRoot, manifest, [modulePlan({ intentions: [WIRE] })]);
+
+    expect(result.authored).toEqual([WIRE]);
+    expect(result.pending).toEqual([]);
+    expect(result.manifest.modules.provider?.[0]?.intentions).toEqual({ applied: [], skipped: {} });
+  });
+
+  test("are pending again on the next add, and not once bg.json records an outcome for them", async () => {
+    const { projectRoot, manifest } = await freshProject();
+    const first = await install(projectRoot, manifest, [modulePlan({ intentions: [WIRE] })]);
+
+    expect(
+      (await install(projectRoot, first.manifest, [modulePlan({ intentions: [WIRE] })])).authored,
+    ).toEqual([WIRE]);
+
+    const outcomes = [
+      { applied: [WIRE.id], skipped: {} },
+      { applied: [], skipped: { [WIRE.id]: "no auth module" } },
+    ];
+    for (const outcome of outcomes) {
+      const resolved = parseProjectManifest({
+        ...first.manifest,
+        modules: {
+          provider: first.manifest.modules.provider?.map((record) => ({
+            ...record,
+            intentions: outcome,
+          })),
+        },
+      });
+
+      const again = await install(projectRoot, resolved, [modulePlan({ intentions: [WIRE] })]);
+
+      expect(again.authored).toEqual([]);
+      expect(again.manifest.modules.provider?.[0]?.intentions).toEqual(outcome);
+    }
+  });
+
+  test("a dry run reports them and writes nothing", async () => {
+    const { projectRoot, manifest } = await freshProject();
+
+    const result = await install(projectRoot, manifest, [modulePlan({ intentions: [WIRE] })], {
+      dryRun: true,
+    });
+
+    expect(result.authored).toEqual([WIRE]);
+    expect(await readdir(projectRoot)).toEqual([]);
   });
 });

@@ -98,6 +98,12 @@ export function migrationsDir(from = HERE): string | null {
   return repo ? join(repo, "migrations") : null;
 }
 
+/** Producer registry/ directory (repo root): where the modules and their `intent/` live. */
+export function registryDir(from = HERE): string | null {
+  const repo = findRepoRoot(from);
+  return repo ? join(repo, "registry") : null;
+}
+
 /** @deprecated use defaultRegistrySource */
 export function defaultLocalRegistrySource(repoRoot?: string): string {
   if (repoRoot) {

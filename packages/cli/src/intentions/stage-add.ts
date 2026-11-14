@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { PendingIntention } from "@bonne-garde/registry";
+import type { AuthoredIntention, PendingIntention } from "@bonne-garde/registry";
 import { readStagedIntentions } from "./staged";
 
 /**
@@ -70,11 +70,18 @@ ${checks}
 `;
 }
 
+/** An intention a module ships is staged as it wrote it: its sections are its own. */
+function isAuthored(
+  intention: PendingIntention | AuthoredIntention,
+): intention is AuthoredIntention {
+  return "document" in intention;
+}
+
 /** The executor entry point: the protocol of 065, then the checklist. */
 export function sessionDocument(entries: { id: string; file: string }[]): string {
   return `# Pending intentions
 
-\`bg add\` left ${entries.length} change${entries.length === 1 ? "" : "s"} to make by hand: a patch it could not apply to a file the project owns became an intention. Follow the executor protocol of spec 065:
+\`bg add\` left ${entries.length} change${entries.length === 1 ? "" : "s"} to make by hand: a patch it could not apply to a file the project owns became an intention, or an intention a module ships covers what no patch can express. Follow the executor protocol of spec 065:
 
 1. Read this checklist, then each intention below in order.
 2. For each one, propose apply or skip, citing what you see in the project, and wait for the human's confirmation before any edit or record.
@@ -106,7 +113,7 @@ const NUMBERED = /^\.bg\/add\/(\d{2})-/;
  */
 export async function stagePendingIntentions(
   projectRoot: string,
-  pending: PendingIntention[],
+  pending: (PendingIntention | AuthoredIntention)[],
   resolved: ReadonlySet<string>,
 ): Promise<StagedAdd | null> {
   if (pending.length === 0) {
@@ -136,7 +143,10 @@ export async function stagePendingIntentions(
 
   await mkdir(join(projectRoot, ADD_DIR), { recursive: true });
   for (const [index, intention] of pending.entries()) {
-    await writeFile(join(projectRoot, files[index]?.file ?? ""), intentionDocument(intention));
+    await writeFile(
+      join(projectRoot, files[index]?.file ?? ""),
+      isAuthored(intention) ? intention.document : intentionDocument(intention),
+    );
   }
   const checklist = [...byId]
     .filter(([id]) => !resolved.has(id))

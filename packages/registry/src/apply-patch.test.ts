@@ -44,6 +44,7 @@ function modulePlan(overrides: Partial<ModulePlan> = {}): ModulePlan {
     options: {},
     files: [],
     patches: [patch()],
+    intentions: [],
     env: [],
     dependencies: {},
     devDependencies: {},

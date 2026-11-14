@@ -376,10 +376,11 @@ type ModuleOutput = {
   pendingIntentions: {
     id: string;
     module: string;
-    type: string;
-    file: string;
+    /** `null` for an intention a module authors: it is no failed patch. */
+    type: string | null;
+    file: string | null;
     intent: string;
-    reason: string;
+    reason: string | null;
     staged: string | null;
   }[];
   session: string | null;
@@ -1304,5 +1305,218 @@ describe("bg add: package.dependencies (060)", () => {
     ]);
     expect(out.pendingIntentions.map((pending) => pending.id)).toEqual([id]);
     expect(stderr).toContain("bg: PATCH FAILED package.dependencies on package.json (dev/wiring)");
+  });
+});
+
+describe("bg add: the intentions a module authors (065)", () => {
+  const ID = "dev/launcher/wire-launcher";
+  const DOCUMENT = `---\nid: ${ID}\nkind: install\ndomain: dev\nclassification: migration\n---\n\n# Start the app through {{SCOPE}}/launcher\n\n## Goal\n\nImport {{SCOPE}}/launcher.\n`;
+
+  /** A registry of one module, `dev/launcher`, whose variant ships one intention and has nothing else to write. */
+  async function launcherRegistry(): Promise<string> {
+    const root = await mkdtemp(join(tmpdir(), "bg-cli-intent-reg-"));
+    dirs.push(root);
+    const dir = join(root, "registry/modules/dev/launcher");
+    await mkdir(join(dir, "intent"), { recursive: true });
+    await writeFile(join(root, "registry/registry.json"), JSON.stringify({ name: "t", items: [] }));
+    await writeFile(
+      join(dir, "module.json"),
+      JSON.stringify({
+        id: "launcher",
+        category: "dev",
+        title: "Launcher",
+        description: "Ships an intention.",
+        checks: ["bun run typecheck"],
+        variants: [{ key: "default", match: {}, intent: ["01-wire-launcher.md"] }],
+      }),
+    );
+    await writeFile(join(dir, "intent/01-wire-launcher.md"), DOCUMENT);
+    return `local:${join(root, "registry")}`;
+  }
+
+  async function projectWithLauncher(): Promise<string> {
+    const parent = await mkdtemp(join(tmpdir(), "bg-cli-intent-"));
+    dirs.push(parent);
+    return createProject({
+      name: "cli-app",
+      cwd: parent,
+      git: false,
+      install: false,
+      registry: await launcherRegistry(),
+    });
+  }
+
+  test("is staged as written with the scope rendered, reported by doctor, and closed by bg record", async () => {
+    const target = await projectWithLauncher();
+
+    const { stdout, stderr, code } = await runBg(
+      target,
+      "add",
+      "dev/launcher",
+      "--yes",
+      "--no-install",
+    );
+
+    // The install completes: the intention is part of it, not a failure of it.
+    expect(code).toBe(0);
+    const out = JSON.parse(stdout) as ModuleOutput;
+    expect(out.pendingIntentions).toEqual([
+      {
+        id: ID,
+        module: "dev/launcher",
+        type: null,
+        file: null,
+        intent: "Start the app through @cli-app/launcher",
+        reason: null,
+        staged: ".bg/add/01-wire-launcher.md",
+      },
+    ]);
+    expect(out.session).toBe(".bg/add/session.md");
+    expect(out.failedPatches).toEqual([]);
+    expect(stderr).toContain("bg: 1 pending intention: read .bg/add/session.md");
+    expect(stderr).toContain("checks withheld while 1 intention is pending");
+    expect(await readFile(join(target, ".bg/add/01-wire-launcher.md"), "utf8")).toBe(
+      DOCUMENT.replaceAll("{{SCOPE}}", "@cli-app"),
+    );
+    expect(await readFile(join(target, ".bg/add/session.md"), "utf8")).toContain(ID);
+
+    // doctor names it, and --strict fails on it: it is pending work, not a clean install.
+    const pending = await runBg(target, "doctor", "--strict");
+    expect(pending.code).toBe(1);
+    expect(pending.stdout).toContain(
+      `${ID} is staged in .bg/add/01-wire-launcher.md and not recorded`,
+    );
+
+    // The same add again stages the same bytes.
+    const before = await snapshot(target);
+    const again = await runBg(target, "add", "dev/launcher", "--yes", "--no-install");
+    expect(again.code).toBe(0);
+    expect((await snapshot(target))[".bg/add/01-wire-launcher.md"]).toBe(
+      before[".bg/add/01-wire-launcher.md"],
+    );
+
+    // bg record closes it: doctor is green and a later add does not raise it again.
+    expect((await runBg(target, "record", ID)).code).toBe(0);
+    expect((await runBg(target, "doctor", "--strict")).code).toBe(0);
+    const last = await runBg(target, "add", "dev/launcher", "--yes", "--no-install");
+    expect(last.code).toBe(0);
+    expect((JSON.parse(last.stdout) as ModuleOutput).pendingIntentions).toEqual([]);
+    expect(last.stderr).not.toContain("pending intention");
+  });
+
+  test("--dry-run reports it with nothing staged", async () => {
+    const target = await projectWithLauncher();
+    const before = await snapshot(target);
+
+    const { stdout, stderr, code } = await runBg(
+      target,
+      "add",
+      "dev/launcher",
+      "--dry-run",
+      "--yes",
+      "--no-install",
+    );
+
+    expect(code).toBe(0);
+    const out = JSON.parse(stdout) as ModuleOutput;
+    expect(out.pendingIntentions.map(({ id, staged }) => [id, staged])).toEqual([[ID, null]]);
+    expect(out.session).toBeNull();
+    expect(stderr).not.toContain("read .bg/add/session.md");
+    expect(await snapshot(target)).toEqual(before);
+  });
+});
+
+describe("bg intentions lint: the intentions modules author (065)", () => {
+  const emptyMigrations = async (): Promise<string> => {
+    const dir = await mkdtemp(join(tmpdir(), "bg-cli-lint-mig-"));
+    dirs.push(dir);
+    return dir;
+  };
+
+  /** A registry whose one module, `dev/launcher`, ships `intent/01-wire-launcher.md` with the given id. */
+  async function registryWithIntention(id: string): Promise<string> {
+    const root = await mkdtemp(join(tmpdir(), "bg-cli-lint-reg-"));
+    dirs.push(root);
+    const dir = join(root, "modules/dev/launcher");
+    await mkdir(join(dir, "intent"), { recursive: true });
+    await writeFile(
+      join(dir, "module.json"),
+      JSON.stringify({
+        id: "launcher",
+        category: "dev",
+        title: "Launcher",
+        description: "Ships an intention.",
+        variants: [{ key: "default", match: {}, intent: ["01-wire-launcher.md"] }],
+      }),
+    );
+    const sections = [
+      "Goal",
+      "Why",
+      "Applies When",
+      "Do Not Apply When",
+      "Observable Gaps",
+      "Out of Scope",
+      "Reference Paths",
+      "Validation",
+      "Record Result",
+    ]
+      .map((name) => `## ${name}\n\n${name === "Reference Paths" ? "- `adapt` `a.ts`" : "x"}\n`)
+      .join("\n");
+    await writeFile(
+      join(dir, "intent/01-wire-launcher.md"),
+      `---\nid: ${id}\nkind: install\ndomain: dev\nclassification: migration\n---\n\n# Wire\n\n${sections}`,
+    );
+    return root;
+  }
+
+  test("lints the registry beside the migrations, and lists the intentions of each module", async () => {
+    const registry = await registryWithIntention("dev/launcher/wire-launcher");
+
+    const { stdout, code } = await runBg(
+      await emptyMigrations(),
+      "intentions",
+      "lint",
+      "--dir",
+      await emptyMigrations(),
+      "--registry",
+      registry,
+    );
+
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout)).toEqual({
+      ok: true,
+      releases: [],
+      modules: [{ module: "dev/launcher", intentions: ["dev/launcher/wire-launcher"] }],
+    });
+  });
+
+  test("fails on a module's intention that breaks the format, naming the module and the file", async () => {
+    const registry = await registryWithIntention("dev/launcher/other");
+
+    const { stderr, code } = await runBg(
+      await emptyMigrations(),
+      "intentions",
+      "lint",
+      "--dir",
+      await emptyMigrations(),
+      "--registry",
+      registry,
+    );
+
+    expect(code).toBe(1);
+    expect(stderr).toContain(
+      "dev/launcher: 01-wire-launcher.md: id must be dev/launcher/wire-launcher, got dev/launcher/other",
+    );
+  });
+
+  test("with no flag it lints this repository's own migrations and registry, which is what verify runs", async () => {
+    const { stdout, code } = await runBg(repoRoot(), "intentions", "lint");
+
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout)).toMatchObject({
+      ok: true,
+      releases: [],
+      modules: expect.any(Array),
+    });
   });
 });
