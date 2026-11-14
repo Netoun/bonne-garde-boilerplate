@@ -4,7 +4,7 @@
  * Bundles CLI + schema + registry + templates/base (no workspace: deps).
  */
 import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
 const OUT = join(ROOT, "dist/npm/create-bonne-garde");
@@ -24,25 +24,22 @@ async function walkFiles(dir: string): Promise<string[]> {
   return files;
 }
 
-function rewriteImports(source: string): string {
-  return source
-    .replaceAll('from "@bonne-garde/schema"', 'from "../lib/schema/index.ts"')
-    .replaceAll('from "@bonne-garde/registry"', 'from "../lib/registry/index.ts"')
-    .replaceAll('from "@bonne-garde/schema"', 'from "../lib/schema/index.ts"');
+/**
+ * A workspace package is bundled under `lib/<name>`, and a file that imports it by name has to reach
+ * it by a path that climbs from where the file itself lies: `src/` and `src/intentions/` are not
+ * one deep both.
+ */
+function rewriteFileImports(filePath: string, source: string): string {
+  return source.replace(/from "@bonne-garde\/(schema|registry)"/g, (_match, name: string) => {
+    const target = relative(dirname(filePath), join(OUT, "lib", name, "index.ts"));
+    return `from "${target.startsWith(".") ? target : `./${target}`}"`;
+  });
 }
 
-async function rewriteFileImports(filePath: string): Promise<void> {
+async function rewriteImportsOf(filePath: string): Promise<void> {
   if (!filePath.endsWith(".ts")) return;
   const original = await readFile(filePath, "utf8");
-  let next = original
-    .replaceAll('from "@bonne-garde/schema"', 'from "../lib/schema/index.ts"')
-    .replaceAll('from "@bonne-garde/registry"', 'from "../lib/registry/index.ts"');
-
-  // schema imports inside registry package
-  if (filePath.includes(`${join("lib", "registry")}`)) {
-    next = next.replaceAll('from "@bonne-garde/schema"', 'from "../schema/index.ts"');
-  }
-
+  const next = rewriteFileImports(filePath, original);
   if (next !== original) {
     await writeFile(filePath, next, "utf8");
   }
@@ -76,19 +73,7 @@ for (const file of await walkFiles(OUT)) {
 
 const allFiles = await walkFiles(OUT);
 for (const file of allFiles) {
-  await rewriteFileImports(file);
-}
-
-// Fix registry → schema relative path after generic rewrite
-for (const file of await walkFiles(join(OUT, "lib/registry"))) {
-  if (!file.endsWith(".ts")) continue;
-  const original = await readFile(file, "utf8");
-  const next = original
-    .replaceAll('from "../lib/schema/index.ts"', 'from "../schema/index.ts"')
-    .replaceAll('from "@bonne-garde/schema"', 'from "../schema/index.ts"');
-  if (next !== original) {
-    await writeFile(file, next, "utf8");
-  }
+  await rewriteImportsOf(file);
 }
 
 // Schema and registry are bundled in, so what their `package.json` files depend on is what the
@@ -187,5 +172,4 @@ for (const bin of ["src/bin.ts", "src/create-bin.ts"]) {
   }
 }
 
-void rewriteImports;
 console.log(`packed create-bonne-garde → ${OUT}`);

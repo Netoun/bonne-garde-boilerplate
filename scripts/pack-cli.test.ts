@@ -1,7 +1,8 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
 const PACKED = join(ROOT, "dist/npm/create-bonne-garde");
@@ -80,5 +81,42 @@ describe("pack-cli", () => {
       "ts-morph": expect.stringMatching(/^\d+\.\d+\.\d+$/),
     });
     expect(packed.dependencies).toEqual(external);
+  });
+
+  test("a workspace package is imported by a path that resolves from where the file lies, at any depth of src/", async () => {
+    const pack = Bun.spawn(["bun", "scripts/pack-cli.ts"], {
+      cwd: ROOT,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    expect(await pack.exited).toBe(0);
+
+    const dangling: string[] = [];
+    const left: string[] = [];
+    for (const dir of ["src", "lib"]) {
+      for await (const path of new Bun.Glob("**/*.ts").scan({ cwd: join(PACKED, dir) })) {
+        const file = join(PACKED, dir, path);
+        const source = await Bun.file(file).text();
+        for (const [, specifier] of source.matchAll(
+          /from "(@bonne-garde\/[^"]+|\.{1,2}\/[^"]+)"/g,
+        )) {
+          if (specifier === undefined) continue;
+          if (specifier.startsWith("@")) {
+            left.push(`${dir}/${path}: ${specifier}`);
+          } else if (
+            ![specifier, `${specifier}.ts`, `${specifier}/index.ts`].some((candidate) =>
+              existsSync(join(dirname(file), candidate)),
+            )
+          ) {
+            dangling.push(`${dir}/${path}: ${specifier}`);
+          }
+        }
+      }
+    }
+
+    // Packing copies a workspace package in and rewrites what names it: both a name left and a path
+    // that climbs the wrong number of directories (src/intentions/ is one deeper than src/) break the CLI.
+    expect(left).toEqual([]);
+    expect(dangling).toEqual([]);
   });
 });
