@@ -25,8 +25,7 @@ None. `provider` is first in spec 035's topological order: it peers on nothing, 
 ## What the module writes
 
 `bg add provider/cloudflare` writes the `packages/api-runtime` workspace, the package `apps/api`
-imports for everything that depends on where it runs, and merges `RESEND_API_KEY` into
-`.env.example`:
+imports for everything that depends on where it runs:
 
 - `runtimeOptions`: `{ adapter: CloudflareAdapter, aot: false }`.
 - `readRuntimeEnv()`: the `cloudflare:workers` environment, `process.env` where that specifier does
@@ -41,6 +40,9 @@ They import `elysia`, which this repo's root does not install, so `test:scripts`
 is where they run.
 It declares `elysia`, `@cloudflare/workers-types` and `@types/node`, pinned, in the workspace
 `package.json`.
+
+It declares no env key: a key belongs to the module that reads it (035), and nothing here reads one.
+`RESEND_API_KEY` is the `email` module's.
 
 ## What it does not write
 

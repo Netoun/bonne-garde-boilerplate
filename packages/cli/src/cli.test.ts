@@ -429,7 +429,8 @@ describe("bg add <module>", () => {
         files: CLOUDFLARE_FILES,
         workspace: "packages/api-runtime",
         dependencies: { elysia: "1.4.29" },
-        env: [{ name: "RESEND_API_KEY", required: true, status: "added" }],
+        // 035: a key belongs to the module that reads it, and nothing in this provider reads one.
+        env: [],
       }),
     ]);
 
@@ -455,7 +456,9 @@ describe("bg add <module>", () => {
     });
     // 035 (d): a provider writes nothing under apps/*; the Worker's wrangler.jsonc is the api module's.
     expect(out.written.filter((path) => path.startsWith("apps/"))).toEqual([]);
-    expect(await readFile(join(target, ".env.example"), "utf8")).toBe("RESEND_API_KEY=\n");
+    await expect(readFile(join(target, ".env.example"), "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
 
     const bg = JSON.parse(await readFile(join(target, "bg.json"), "utf8")) as {
       modules: Record<string, Record<string, unknown>[]>;
@@ -473,7 +476,7 @@ describe("bg add <module>", () => {
       }),
     ]);
     expect(bg.files["packages/api-runtime/src/index.ts"]?.owner).toBe("provider/cloudflare");
-    expect(bg.regions[".env.example"]).toEqual({ RESEND_API_KEY: "provider/cloudflare" });
+    expect(bg.regions[".env.example"]).toBeUndefined();
 
     const doctor = await runBg(target, "doctor", "--strict");
     expect(doctor.code).toBe(0);
@@ -498,7 +501,7 @@ describe("bg add <module>", () => {
     expect(out.written).toEqual([]);
     expect(out.skippedIdentical).toEqual(CLOUDFLARE_FILES);
     expect(out.kept).toEqual([]);
-    expect(out.modules[0]?.env.map((key) => key.status)).toEqual(["present"]);
+    expect(out.modules[0]?.env).toEqual([]);
     const after = await snapshot(target);
     const withoutInstalledAt = (tree: Record<string, string>) =>
       (tree["bg.json"] ?? "").replace(/"installedAt": "[^"]*"/g, '"installedAt": "-"');
@@ -555,7 +558,6 @@ describe("bg add <module>", () => {
       "DATA_DIR",
       "APP_URL",
       "TRUSTED_PROXY_HEADER",
-      "RESEND_API_KEY",
     ]);
     expect(await snapshot(target)).toEqual(before);
   });

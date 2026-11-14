@@ -160,7 +160,8 @@ describe("bg add from a github source", () => {
       const bg = await readBg(root);
       expect(bg.modules.provider?.map((record) => record.id)).toEqual(["cloudflare"]);
       expect(bg.files["packages/api-runtime/src/index.ts"]?.owner).toBe("provider/cloudflare");
-      expect(await readFile(join(root, ".env.example"), "utf8")).toContain("RESEND_API_KEY=");
+      // The provider declares no env key (035): `.env.example` is the modules' that read one.
+      await expect(stat(join(root, ".env.example"))).rejects.toMatchObject({ code: "ENOENT" });
     }
   });
 

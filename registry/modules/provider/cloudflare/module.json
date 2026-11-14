@@ -23,8 +23,7 @@
         "packages/api-runtime/tsconfig.test.json",
         "packages/api-runtime/src/index.ts",
         "packages/api-runtime/src/index.test.ts"
-      ],
-      "env": [{ "name": "RESEND_API_KEY", "required": true, "example": "" }]
+      ]
     }
   ]
 }

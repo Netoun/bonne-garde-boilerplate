@@ -81,7 +81,7 @@ The dockerfile runtime's generation is container behaviour inside its `readRunti
 value there and an operator's own wins. Under `NODE_ENV=test` a missing secret gets a fixture. Anywhere
 else a missing one fails the first request that needs auth, naming the key.
 
-`RESEND_API_KEY` is not auth's: it waits for the `email` module.
+`RESEND_API_KEY` is not auth's: it is the `email` module's.
 
 ## Email
 

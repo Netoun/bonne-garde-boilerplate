@@ -61,8 +61,10 @@ module that reads it (035). Keeper's reasoning: a volume and a port should
 be enough for `docker run`, and failing at startup on a missing secret breaks that. It is written
 once under `DATA_DIR`, to a temporary file that is hard-linked into place, so two simultaneous
 starts cannot produce two secrets and a reader never sees an empty file. `RESEND_API_KEY` is not
-treated the same way: `apps/api` requires it and nothing here can stand in for an email provider,
-so a volume and a port are not enough for this module, a key is needed too.
+treated the same way, and it is not this module's: it is the `email` module's key, which that module
+declares and reads, and nothing here can stand in for an email provider. The API boots without it, and
+the first email asked for fails naming the key; `compose.yaml` only forwards it from the host's
+environment when it is set.
 
 ## The client's address and a reverse proxy
 
@@ -134,8 +136,8 @@ under a second. Before this module wrote the `package.json` of `packages/api-run
 `Dockerfile` stopped naming the SPA, `bun run --filter '@scope/spa' build` failed with "No workspace
 packages matched" on such a project.
 
-`compose.yaml` still refuses to start without `RESEND_API_KEY`, which the API shell no longer reads:
-the `email` module will own it.
+`compose.yaml` no longer refuses to start without `RESEND_API_KEY`: the API shell does not read it, and
+the `email` module owns it (it forwards the key when the host has one).
 
 Two fixes were needed to get the image to build at all, neither of them where the first diagnosis put it:
 
